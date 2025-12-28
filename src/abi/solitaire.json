@@ -22,6 +22,39 @@
     "state_mutability": "external"
   },
   {
+    "type": "enum",
+    "name": "core::bool",
+    "variants": [
+      {
+        "name": "False",
+        "type": "()"
+      },
+      {
+        "name": "True",
+        "type": "()"
+      }
+    ]
+  },
+  {
+    "type": "function",
+    "name": "set_paused",
+    "inputs": [
+      {
+        "name": "paused",
+        "type": "core::bool"
+      }
+    ],
+    "outputs": [],
+    "state_mutability": "external"
+  },
+  {
+    "type": "function",
+    "name": "reset_scores",
+    "inputs": [],
+    "outputs": [],
+    "state_mutability": "external"
+  },
+  {
     "type": "function",
     "name": "set_daily_seed",
     "inputs": [
@@ -49,6 +82,28 @@
     "outputs": [
       {
         "type": "core::integer::u64"
+      }
+    ],
+    "state_mutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "get_epoch",
+    "inputs": [],
+    "outputs": [
+      {
+        "type": "core::integer::u16"
+      }
+    ],
+    "state_mutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "is_paused",
+    "inputs": [],
+    "outputs": [
+      {
+        "type": "core::bool"
       }
     ],
     "state_mutability": "view"

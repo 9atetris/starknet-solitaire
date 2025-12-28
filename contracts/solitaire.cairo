@@ -25,19 +25,21 @@ mod solitaire_v1 {
     struct Storage {
         owner: ContractAddress,
         version: u16,
+        paused: bool,
+        epoch: u16,
 
         daily_seed: Map<u32, u64>, // day(YYYYMMDD)->seed
 
-        best_points: Map<(ContractAddress, u32), u64>,
-        best_all_time: Map<ContractAddress, u64>,
-        points_total: Map<ContractAddress, u64>,
-        points_by_day: Map<(ContractAddress, u32), u64>,
+        best_points: Map<(u16, ContractAddress, u32), u64>,
+        best_all_time: Map<(u16, ContractAddress), u64>,
+        points_total: Map<(u16, ContractAddress), u64>,
+        points_by_day: Map<(u16, ContractAddress, u32), u64>,
 
-        streak: Map<ContractAddress, u16>,
-        last_day_played: Map<ContractAddress, u32>,
+        streak: Map<(u16, ContractAddress), u16>,
+        last_day_played: Map<(u16, ContractAddress), u32>,
 
-        leaderboard: Map<(u32, u8), Entry>, // (day, idx)->Entry
-        leaderboard_len: Map<u32, u8>,      // day->len (0..10)
+        leaderboard: Map<(u16, u32, u8), Entry>, // (epoch, day, idx)->Entry
+        leaderboard_len: Map<(u16, u32), u8>,    // (epoch, day)->len (0..10)
 
         achievements: Map<ContractAddress, u256>, // future
         commits: Map<(ContractAddress, u32), felt252>, // future
@@ -65,7 +67,9 @@ mod solitaire_v1 {
     #[constructor]
     fn constructor(ref self: ContractState, owner: ContractAddress) {
         self.owner.write(owner);
-        self.version.write(1);
+        self.version.write(2);
+        self.paused.write(false);
+        self.epoch.write(0_u16);
         self.reserved_u64_0.write(0);
         self.reserved_u64_1.write(0);
     }
@@ -85,6 +89,20 @@ mod solitaire_v1 {
     }
 
     #[external(v0)]
+    fn set_paused(ref self: ContractState, paused: bool) {
+        only_owner(@self);
+        self.paused.write(paused);
+    }
+
+    #[external(v0)]
+    fn reset_scores(ref self: ContractState) {
+        only_owner(@self);
+        let epoch = self.epoch.read();
+        self.epoch.write(epoch + 1_u16);
+        self.paused.write(false);
+    }
+
+    #[external(v0)]
     fn set_daily_seed(ref self: ContractState, day: u32, seed: u64) {
         only_owner(@self);
         self.daily_seed.write(day, seed);
@@ -95,26 +113,40 @@ mod solitaire_v1 {
         self.daily_seed.read(day)
     }
 
+    #[external(v0)]
+    fn get_epoch(self: @ContractState) -> u16 {
+        self.epoch.read()
+    }
+
+    #[external(v0)]
+    fn is_paused(self: @ContractState) -> bool {
+        self.paused.read()
+    }
+
     // ========= Views =========
     #[external(v0)]
     fn get_my_best(self: @ContractState, player: ContractAddress, day: u32) -> u64 {
-        self.best_points.read((player, day))
+        let epoch = self.epoch.read();
+        self.best_points.read((epoch, player, day))
     }
 
     #[external(v0)]
     fn get_my_total(self: @ContractState, player: ContractAddress) -> u64 {
-        self.points_total.read(player)
+        let epoch = self.epoch.read();
+        self.points_total.read((epoch, player))
     }
 
     #[external(v0)]
     fn get_leaderboard_len(self: @ContractState, day: u32) -> u8 {
-        self.leaderboard_len.read(day)
+        let epoch = self.epoch.read();
+        self.leaderboard_len.read((epoch, day))
     }
 
     #[external(v0)]
     fn get_top_entry(self: @ContractState, day: u32, idx: u8) -> Entry {
         // caller should ensure idx < 10
-        self.leaderboard.read((day, idx))
+        let epoch = self.epoch.read();
+        self.leaderboard.read((epoch, day, idx))
     }
 
     // ========= Points formula (V1) =========
@@ -153,8 +185,9 @@ mod solitaire_v1 {
 
     // ========= Streak update =========
     fn update_streak(ref self: ContractState, player: ContractAddress, day: u32) -> u16 {
-        let last = self.last_day_played.read(player);
-        let cur = self.streak.read(player);
+        let epoch = self.epoch.read();
+        let last = self.last_day_played.read((epoch, player));
+        let cur = self.streak.read((epoch, player));
 
         // V1: "連続"判定は offchain で day を連番管理するのが理想。
         // ここでは簡易：前回と違うdayなら streak を更新（連続判定はUI側で day-1 を渡す設計にするのがベター）
@@ -169,8 +202,8 @@ mod solitaire_v1 {
         // - YYYYMMDD を day-1 で扱えるようにユーティリティを導入する
         // V1では「別日なら +1」「初回なら1」「飛んだら1」にするのが現実的。
         let new_streak = if last == 0_u32 { 1_u16 } else { cur + 1_u16 };
-        self.streak.write(player, new_streak);
-        self.last_day_played.write(player, day);
+        self.streak.write((epoch, player), new_streak);
+        self.last_day_played.write((epoch, player), day);
         new_streak
     }
 
@@ -193,9 +226,9 @@ mod solitaire_v1 {
     }
 
     // Insert into Top10 (Map(day, idx)). Assumes caller already has updated player's new_points.
-    fn upsert_top10(ref self: ContractState, day: u32, entry: Entry) {
+    fn upsert_top10(ref self: ContractState, epoch: u16, day: u32, entry: Entry) {
         // Determine current length
-        let mut len = self.leaderboard_len.read(day);
+        let mut len = self.leaderboard_len.read((epoch, day));
         if len > 10_u8 { len = 10_u8; }
 
         // If player already exists in top list, remove it first (so one player occupies one slot)
@@ -203,14 +236,14 @@ mod solitaire_v1 {
         let mut i: u8 = 0_u8;
         let mut found: bool = false;
         while i < len {
-            let cur = self.leaderboard.read((day, i));
+            let cur = self.leaderboard.read((epoch, day, i));
             if cur.player == entry.player {
                 found = true;
                 // shift left from i+1..len-1
                 let mut j = i;
                 while j + 1_u8 < len {
-                    let nxt = self.leaderboard.read((day, j + 1_u8));
-                    self.leaderboard.write((day, j), nxt);
+                    let nxt = self.leaderboard.read((epoch, day, j + 1_u8));
+                    self.leaderboard.write((epoch, day, j), nxt);
                     j = j + 1_u8;
                 }
                 // len decreases by 1
@@ -225,17 +258,17 @@ mod solitaire_v1 {
         let mut inserted: bool = false;
 
         while pos < len {
-            let cur = self.leaderboard.read((day, pos));
+            let cur = self.leaderboard.read((epoch, day, pos));
             if better_than(entry, cur) {
                 // shift right to make room (up to 9)
                 let mut k = if len < 10_u8 { len } else { 9_u8 };
                 // shift from k-1 down to pos
                 while k > pos {
-                    let prev = self.leaderboard.read((day, k - 1_u8));
-                    self.leaderboard.write((day, k), prev);
+                    let prev = self.leaderboard.read((epoch, day, k - 1_u8));
+                    self.leaderboard.write((epoch, day, k), prev);
                     k = k - 1_u8;
                 }
-                self.leaderboard.write((day, pos), entry);
+                self.leaderboard.write((epoch, day, pos), entry);
                 inserted = true;
                 break;
             }
@@ -245,7 +278,7 @@ mod solitaire_v1 {
         if !inserted {
             if len < 10_u8 {
                 // append
-                self.leaderboard.write((day, len), entry);
+                self.leaderboard.write((epoch, day, len), entry);
                 inserted = true;
                 pos = len;
             } else {
@@ -256,7 +289,7 @@ mod solitaire_v1 {
 
         // Update len (cap at 10)
         let new_len = if len < 10_u8 { len + 1_u8 } else { 10_u8 };
-        self.leaderboard_len.write(day, new_len);
+        self.leaderboard_len.write((epoch, day), new_len);
 
         // Optional event
         LeaderboardUpdated(day, pos, entry.player, entry.points);
@@ -266,6 +299,9 @@ mod solitaire_v1 {
     #[external(v0)]
     fn submit_result(ref self: ContractState, day: u32, time_sec: u32, moves: u16) {
         let player = get_caller_address();
+        let paused = self.paused.read();
+        assert(paused == false, 'PAUSED');
+        let epoch = self.epoch.read();
 
         // update streak first (affects points)
         let s = update_streak(ref self, player, day);
@@ -274,36 +310,36 @@ mod solitaire_v1 {
         let new_points = calc_points(time_sec, moves, s);
 
         // read old best
-        let old_best = self.best_points.read((player, day));
+        let old_best = self.best_points.read((epoch, player, day));
         if new_points <= old_best {
             // no update, no delta
             // (You can still emit ResultSubmitted with delta=0 if you want)
-            let total_now = self.points_total.read(player);
+            let total_now = self.points_total.read((epoch, player));
             ResultSubmitted(player, day, new_points, 0_u64, total_now, time_sec, moves);
             return;
         }
 
         // delta add (B)
         let delta = new_points - old_best;
-        self.best_points.write((player, day), new_points);
+        self.best_points.write((epoch, player, day), new_points);
 
         // update best_all_time (optional)
-        let old_all = self.best_all_time.read(player);
+        let old_all = self.best_all_time.read((epoch, player));
         if new_points > old_all {
-            self.best_all_time.write(player, new_points);
+            self.best_all_time.write((epoch, player), new_points);
         }
 
         // update totals
-        let total_prev = self.points_total.read(player);
+        let total_prev = self.points_total.read((epoch, player));
         let total_now = total_prev + delta;
-        self.points_total.write(player, total_now);
+        self.points_total.write((epoch, player), total_now);
 
-        let day_prev = self.points_by_day.read((player, day));
-        self.points_by_day.write((player, day), day_prev + delta);
+        let day_prev = self.points_by_day.read((epoch, player, day));
+        self.points_by_day.write((epoch, player, day), day_prev + delta);
 
         // leaderboard uses new_points (not delta)
         let entry = Entry { player, points: new_points, time_sec, moves };
-        upsert_top10(ref self, day, entry);
+        upsert_top10(ref self, epoch, day, entry);
 
         // emit
         ResultSubmitted(player, day, new_points, delta, total_now, time_sec, moves);
