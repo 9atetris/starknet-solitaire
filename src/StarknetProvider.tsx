@@ -2,6 +2,7 @@ import { useMemo, type ReactNode } from 'react';
 import { mainnet, sepolia } from '@starknet-react/chains';
 import { StarknetConfig, jsonRpcProvider } from '@starknet-react/core';
 import { ControllerConnector } from '@cartridge/connector';
+import type { ControllerOptions } from '@cartridge/controller';
 import { constants } from 'starknet';
 
 type StarknetProviderProps = {
@@ -12,13 +13,13 @@ const env = (import.meta as ImportMeta & { env: Record<string, string | undefine
 const RPC_URL = env.VITE_RPC_URL || env.NEXT_PUBLIC_RPC_URL || '';
 const KEYCHAIN_URL = env.VITE_KEYCHAIN_URL || '';
 export const CHAINS = [sepolia, mainnet];
-const CONTROLLER_DEFAULTS = {
-  [sepolia.id]: 'https://api.cartridge.gg/x/starknet/sepolia',
-  [mainnet.id]: 'https://api.cartridge.gg/x/starknet/mainnet',
+const CONTROLLER_DEFAULTS: Record<string, string> = {
+  [String(sepolia.id)]: 'https://api.cartridge.gg/x/starknet/sepolia',
+  [String(mainnet.id)]: 'https://api.cartridge.gg/x/starknet/mainnet',
 };
 
-export const resolveControllerRpcUrl = (chainId: number) => {
-  const fallback = CONTROLLER_DEFAULTS[chainId as keyof typeof CONTROLLER_DEFAULTS];
+export const resolveControllerRpcUrl = (chainId: bigint | number | string) => {
+  const fallback = CONTROLLER_DEFAULTS[String(chainId)] ?? CONTROLLER_DEFAULTS[String(sepolia.id)] ?? '';
   if (!RPC_URL) return fallback;
   try {
     const url = new URL(RPC_URL);
@@ -35,15 +36,8 @@ export const resolveControllerRpcUrl = (chainId: number) => {
 export const getDefaultChainId = () =>
   import.meta.env.PROD ? constants.StarknetChainId.SN_MAIN : constants.StarknetChainId.SN_SEPOLIA;
 
-export const getControllerOptions = () => {
-  const options: {
-    chains: { rpcUrl: string }[];
-    defaultChainId: string;
-    signupOptions: string[];
-    lazyload: boolean;
-    url?: string;
-    origin?: string;
-  } = {
+export const getControllerOptions = (): ControllerOptions => {
+  const options: ControllerOptions = {
     chains: CHAINS.map((chain) => ({
       rpcUrl: resolveControllerRpcUrl(chain.id),
     })),

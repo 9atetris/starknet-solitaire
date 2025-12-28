@@ -10,5 +10,5 @@ const normalizedAbi = Array.isArray(rawAbi)
     ? (rawAbi as { default?: unknown }).default
     : (rawAbi as { abi?: unknown })?.abi;
 
-export const SOLITAIRE_ABI = (Array.isArray(normalizedAbi) ? normalizedAbi : []) as const;
+export const SOLITAIRE_ABI = Array.isArray(normalizedAbi) ? normalizedAbi : [];
 export const SOLITAIRE_ABI_READY = SOLITAIRE_ABI.length > 0;

@@ -32,7 +32,7 @@ export default function WalletConnect() {
             console.error('[Cartridge] connectAsync failed:', err);
           }
         }}
-        disabled={!cartridgeConnector || status === 'connecting'}
+        disabled={!cartridgeConnector || status === 'pending'}
       >
         <span className="label-long">Connect with Cartridge</span>
         <span className="label-short">Connect</span>

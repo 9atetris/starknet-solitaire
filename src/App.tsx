@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useAccount, useReadContract } from '@starknet-react/core';
+import { useAccount, useProvider, useReadContract } from '@starknet-react/core';
 import { Contract } from 'starknet';
 import {
   canMoveToFoundation,
@@ -17,6 +17,7 @@ import {
 } from './game';
 import WalletConnect from './WalletConnect';
 import VictoryOverlay from './VictoryOverlay';
+import { createAudioEngine } from './audio';
 import { SOLITAIRE_ABI, SOLITAIRE_ABI_READY, SOLITAIRE_ADDRESS } from './solitaireContract';
 
 const DRAG_THRESHOLD = 6;
@@ -51,6 +52,13 @@ type HistoryState = {
   future: GameSnapshot[];
 };
 
+type LeaderboardEntry = {
+  player: string;
+  points: unknown;
+  timeSec: unknown;
+  moves: unknown;
+};
+
 const formatClock = (seconds: number) => {
   const minutes = Math.floor(seconds / 60);
   const secs = seconds % 60;
@@ -65,6 +73,68 @@ const formatChainValue = (value: unknown, fallback = '—') => {
 
 const shortAddress = (value: string) =>
   value.length <= 12 ? value : `${value.slice(0, 6)}...${value.slice(-4)}`;
+
+const toNumber = (value: unknown) => {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  if (typeof value === 'bigint') return Number(value);
+  if (typeof value === 'string') {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+};
+
+const formatNumber = (value: unknown, fallback = '—') => {
+  const num = toNumber(value);
+  if (num == null) return fallback;
+  return new Intl.NumberFormat().format(num);
+};
+
+const formatDuration = (value: unknown, fallback = '—') => {
+  const num = toNumber(value);
+  if (num == null) return fallback;
+  return formatClock(num);
+};
+
+const normalizeEntry = (data: unknown): LeaderboardEntry | null => {
+  if (!data) return null;
+  if (Array.isArray(data)) {
+    const [player, points, timeSec, moves] = data;
+    if (player == null) return null;
+    return {
+      player: String(player),
+      points,
+      timeSec,
+      moves,
+    };
+  }
+  if (typeof data === 'object') {
+    const record = data as Record<string, unknown>;
+    const player = record.player;
+    const points = record.points;
+    const timeSec = record.time_sec ?? record.timeSec;
+    const moves = record.moves;
+    if (player == null || points == null || timeSec == null || moves == null) return null;
+    return {
+      player: String(player),
+      points,
+      timeSec,
+      moves,
+    };
+  }
+  return null;
+};
+
+const isZeroAddress = (value: string) => /^0x0+$/i.test(value);
+
+const normalizeAddress = (value: string) => value.trim().toLowerCase();
+
+const formatPlayer = (value: unknown) => {
+  if (value == null) return '—';
+  const raw = String(value);
+  if (!raw || isZeroAddress(raw)) return '—';
+  return shortAddress(raw);
+};
 
 export default function App() {
   const [seed, setSeed] = useState(() => getDailySeed());
@@ -85,7 +155,12 @@ export default function App() {
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
   const [submitTx, setSubmitTx] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [leaderboardEntries, setLeaderboardEntries] = useState<LeaderboardEntry[]>([]);
+  const [leaderboardStatus, setLeaderboardStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [leaderboardError, setLeaderboardError] = useState<string | null>(null);
+  const [soundEnabled, setSoundEnabled] = useState(true);
   const dragStateRef = useRef<DragState | null>(null);
+  const audioRef = useRef<ReturnType<typeof createAudioEngine> | null>(null);
   const pendingDragRef = useRef<{
     payload: DragPayload;
     start: { x: number; y: number };
@@ -98,6 +173,7 @@ export default function App() {
   const foundationRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const tableauRef = useRef<HTMLDivElement | null>(null);
   const { account, address, isConnected } = useAccount();
+  const { provider } = useProvider();
   const dailyKey = getDailySeed();
   const { data: onchainTotal } = useReadContract({
     abi: SOLITAIRE_ABI,
@@ -135,6 +211,24 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    audioRef.current = createAudioEngine();
+    const unlock = () => {
+      audioRef.current?.unlock();
+    };
+    window.addEventListener('pointerdown', unlock, { once: true });
+    window.addEventListener('keydown', unlock, { once: true });
+    return () => {
+      window.removeEventListener('pointerdown', unlock);
+      window.removeEventListener('keydown', unlock);
+      audioRef.current?.dispose();
+    };
+  }, []);
+
+  useEffect(() => {
+    audioRef.current?.setEnabled(soundEnabled);
+  }, [soundEnabled]);
+
+  useEffect(() => {
     const onTouchStart = (event: TouchEvent) => {
       const touch = event.touches[0];
       if (!touch) return;
@@ -167,6 +261,7 @@ export default function App() {
 
 
   const commitGame = (next: GameState) => {
+    audioRef.current?.playMove();
     setHistory((prev) => {
       const past = [...prev.past, prev.present];
       if (past.length > MAX_HISTORY) {
@@ -200,6 +295,7 @@ export default function App() {
   useEffect(() => {
     if (win) {
       if (!victorySeen) {
+        audioRef.current?.playWin();
         setVictorySeen(true);
         setVictoryOpen(true);
         setBoardPulse(true);
@@ -222,6 +318,52 @@ export default function App() {
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [dashboardOpen]);
+
+  useEffect(() => {
+    if (!dashboardOpen) return;
+    if (!SOLITAIRE_ABI_READY) return;
+    let active = true;
+
+    const fetchLeaderboard = async () => {
+      setLeaderboardStatus('loading');
+      setLeaderboardError(null);
+      try {
+        const contract = new Contract({
+          abi: SOLITAIRE_ABI as any,
+          address: SOLITAIRE_ADDRESS,
+          providerOrAccount: provider as any,
+        });
+        const lenRaw = await contract.get_leaderboard_len(dailyKey);
+        const lenValue = Math.min(10, toNumber(lenRaw) ?? 0);
+        if (lenValue <= 0) {
+          if (active) {
+            setLeaderboardEntries([]);
+            setLeaderboardStatus('success');
+          }
+          return;
+        }
+        const indices = Array.from({ length: lenValue }, (_, index) => index);
+        const entriesRaw = await Promise.all(indices.map((index) => contract.get_top_entry(dailyKey, index)));
+        const entries = entriesRaw
+          .map((entry) => normalizeEntry(entry))
+          .filter((entry): entry is LeaderboardEntry => Boolean(entry));
+        if (!active) return;
+        setLeaderboardEntries(entries);
+        setLeaderboardStatus('success');
+      } catch (err) {
+        if (!active) return;
+        setLeaderboardEntries([]);
+        setLeaderboardStatus('error');
+        setLeaderboardError(err instanceof Error ? err.message : String(err));
+      }
+    };
+
+    fetchLeaderboard();
+
+    return () => {
+      active = false;
+    };
+  }, [dashboardOpen, dailyKey, provider, submitStatus, SOLITAIRE_ABI_READY]);
 
   useEffect(() => {
     dragStateRef.current = dragState;
@@ -548,6 +690,16 @@ export default function App() {
     setDashboardOpen(false);
   };
 
+  const toggleSound = () => {
+    setSoundEnabled((prev) => {
+      const next = !prev;
+      if (next) {
+        audioRef.current?.unlock();
+      }
+      return next;
+    });
+  };
+
   const submitResult = async () => {
     if (!account) {
       setSubmitStatus('error');
@@ -609,6 +761,16 @@ export default function App() {
         : submitStatus === 'error'
           ? 'Error'
           : 'Idle';
+  const leaderboardStatusLabel =
+    leaderboardStatus === 'loading'
+      ? 'Loading'
+      : leaderboardStatus === 'error'
+        ? 'Unavailable'
+        : leaderboardStatus === 'success'
+          ? 'Ready'
+          : 'Idle';
+  const leaderboardChipLabel =
+    leaderboardStatus === 'success' ? `Top ${leaderboardEntries.length}/10` : leaderboardStatusLabel;
 
   return (
     <div className={`app ${boardPulse ? 'win-pulse' : ''}`} onClick={onBackgroundClick}>
@@ -881,39 +1043,109 @@ export default function App() {
               <div>
                 <p className="score-eyebrow">On-chain + Session</p>
                 <h2>Score Dashboard</h2>
+                <span className="score-day">Day {dailyKey}</span>
               </div>
               <button className="score-close" type="button" onClick={closeDashboard} aria-label="Close dashboard">
                 ×
               </button>
             </div>
-            <div className="score-grid">
-              <div className="score-stat highlight">
-                <span className="label">On-chain total</span>
-                <span className="value">{onchainTotalStr}</span>
-              </div>
-              <div className="score-stat">
-                <span className="label">Daily best</span>
-                <span className="value">{onchainBestStr}</span>
-              </div>
-              <div className="score-stat">
-                <span className="label">Moves</span>
-                <span className="value">{history.present.moves}</span>
-              </div>
-              <div className="score-stat">
-                <span className="label">Time</span>
-                <span className="value">{elapsedLabel}</span>
-              </div>
-              <div className="score-stat">
-                <span className="label">Seed</span>
-                <span className="value">{seed}</span>
-              </div>
-              <div className="score-stat">
-                <span className="label">Wallet</span>
-                <span className="value">{walletLabel}</span>
-              </div>
+            <div className="score-columns">
+              <section className="score-panel">
+                <div className="score-panel-header">
+                  <div>
+                    <p className="score-section-eyebrow">Personal</p>
+                    <h3>My Scores</h3>
+                  </div>
+                  <span className="score-chip">{onchainStatus}</span>
+                </div>
+                <div className="score-grid">
+                  <div className="score-stat highlight">
+                    <span className="label">On-chain total</span>
+                    <span className="value">{onchainTotalStr}</span>
+                  </div>
+                  <div className="score-stat">
+                    <span className="label">Daily best</span>
+                    <span className="value">{onchainBestStr}</span>
+                  </div>
+                  <div className="score-stat">
+                    <span className="label">Moves</span>
+                    <span className="value">{history.present.moves}</span>
+                  </div>
+                  <div className="score-stat">
+                    <span className="label">Time</span>
+                    <span className="value">{elapsedLabel}</span>
+                  </div>
+                  <div className="score-stat">
+                    <span className="label">Seed</span>
+                    <span className="value">{seed}</span>
+                  </div>
+                  <div className="score-stat">
+                    <span className="label">Wallet</span>
+                    <span className="value">{walletLabel}</span>
+                  </div>
+                </div>
+              </section>
+              <section className="score-panel leaderboard-panel">
+                <div className="score-panel-header">
+                  <div>
+                    <p className="score-section-eyebrow">Top 10</p>
+                    <h3>Leaderboard</h3>
+                  </div>
+                  <span
+                    className={`score-chip ${leaderboardStatus === 'error' ? 'danger' : ''} ${
+                      leaderboardStatus === 'loading' ? 'pulse' : ''
+                    }`}
+                  >
+                    {leaderboardChipLabel}
+                  </span>
+                </div>
+                <div className="leaderboard-list">
+                  {leaderboardStatus === 'loading' ? (
+                    <div className="leaderboard-empty">Loading leaderboard...</div>
+                  ) : leaderboardStatus === 'error' ? (
+                    <div className="leaderboard-empty error" title={leaderboardError ?? undefined}>
+                      Unable to load leaderboard
+                    </div>
+                  ) : leaderboardEntries.length === 0 ? (
+                    <div className="leaderboard-empty">No scores yet. Be the first.</div>
+                  ) : (
+                    leaderboardEntries.map((entry, index) => {
+                      const rank = index + 1;
+                      const playerLabel = formatPlayer(entry.player);
+                      const isSelf =
+                        address && normalizeAddress(String(entry.player)) === normalizeAddress(address);
+                      return (
+                        <div
+                          key={`${entry.player}-${index}`}
+                          className={`leaderboard-row ${rank <= 3 ? 'top' : ''} ${isSelf ? 'self' : ''}`}
+                        >
+                          <span className="leaderboard-rank">{rank}</span>
+                          <div className="leaderboard-info">
+                            <span className="leaderboard-player" title={String(entry.player)}>
+                              {playerLabel}
+                            </span>
+                            <span className="leaderboard-meta">
+                              {formatDuration(entry.timeSec)} · {formatNumber(entry.moves)} moves
+                            </span>
+                          </div>
+                          <span className="leaderboard-score">{formatNumber(entry.points)}</span>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </section>
             </div>
             <div className="score-foot">
               <span className={`score-status ${submitStatus}`}>Sync {submitStatusLabel}</span>
+              <button
+                className={`sound-toggle ${soundEnabled ? 'on' : 'off'}`}
+                type="button"
+                onClick={toggleSound}
+              >
+                <span className="label-long">{soundEnabled ? 'Sound on' : 'Sound off'}</span>
+                <span className="label-short">{soundEnabled ? 'SND ON' : 'SND OFF'}</span>
+              </button>
               {submitTx ? (
                 <span className="score-tx">Tx {shortAddress(submitTx)}</span>
               ) : submitError ? (
