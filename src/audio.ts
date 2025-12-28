@@ -6,18 +6,6 @@ type AudioEngine = {
   dispose: () => void;
 };
 
-type Chord = {
-  notes: number[];
-  duration: number;
-};
-
-const CHORDS: Chord[] = [
-  { notes: [293.66, 349.23, 440.0, 523.25, 659.25], duration: 6.4 }, // Dm9
-  { notes: [196.0, 246.94, 293.66, 349.23, 659.25], duration: 6.4 }, // G13
-  { notes: [261.63, 329.63, 392.0, 493.88, 587.33], duration: 6.8 }, // Cmaj9
-  { notes: [220.0, 277.18, 329.63, 392.0, 466.16], duration: 6.8 }, // A7b9
-];
-
 const createNoopEngine = (): AudioEngine => ({
   unlock: () => {},
   playMove: () => {},
@@ -37,89 +25,17 @@ export const createAudioEngine = (): AudioEngine => {
   let context: AudioContext | null = null;
   let masterGain: GainNode | null = null;
   let sfxGain: GainNode | null = null;
-  let bgmGain: GainNode | null = null;
   let enabled = true;
-  let unlocked = false;
-  let bgmTimer: number | null = null;
-  let bgmIndex = 0;
 
   const ensureContext = () => {
     if (context) return;
     context = new AudioContextCtor();
     masterGain = context.createGain();
     sfxGain = context.createGain();
-    bgmGain = context.createGain();
     masterGain.gain.value = 0.55;
     sfxGain.gain.value = 0.6;
-    bgmGain.gain.value = 0.18;
     sfxGain.connect(masterGain);
-    bgmGain.connect(masterGain);
     masterGain.connect(context.destination);
-  };
-
-  const stopBgm = () => {
-    if (bgmTimer != null) {
-      window.clearTimeout(bgmTimer);
-      bgmTimer = null;
-    }
-    bgmIndex = 0;
-  };
-
-  const playChord = (notes: number[], duration: number) => {
-    if (!context || !bgmGain) return;
-    const now = context.currentTime;
-    const chordGain = context.createGain();
-    chordGain.gain.setValueAtTime(0.0001, now);
-    chordGain.gain.exponentialRampToValueAtTime(0.08, now + 0.9);
-    chordGain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
-
-    const filter = context.createBiquadFilter();
-    filter.type = 'lowpass';
-    filter.frequency.value = 1200;
-    filter.Q.value = 0.6;
-
-    chordGain.connect(filter);
-    filter.connect(bgmGain);
-
-    notes.forEach((freq, index) => {
-      const osc = context!.createOscillator();
-      osc.type = index % 2 === 0 ? 'triangle' : 'sine';
-      osc.frequency.value = freq;
-      osc.detune.value = index % 2 === 0 ? -4 : 4;
-      osc.connect(chordGain);
-      osc.start(now);
-      osc.stop(now + duration + 0.1);
-    });
-
-    const bass = context.createOscillator();
-    bass.type = 'sine';
-    bass.frequency.value = notes[0] / 2;
-    bass.connect(chordGain);
-    bass.start(now);
-    bass.stop(now + duration + 0.1);
-  };
-
-  const scheduleBgm = () => {
-    if (!context || !bgmGain || !enabled) return;
-    if (context.state !== 'running') return;
-    if (bgmTimer != null) return;
-
-    const loop = () => {
-      if (!context || !bgmGain || !enabled) {
-        stopBgm();
-        return;
-      }
-      if (context.state !== 'running') {
-        stopBgm();
-        return;
-      }
-      const chord = CHORDS[bgmIndex];
-      playChord(chord.notes, chord.duration);
-      bgmIndex = (bgmIndex + 1) % CHORDS.length;
-      bgmTimer = window.setTimeout(loop, Math.max(4000, chord.duration * 1000 - 200));
-    };
-
-    loop();
   };
 
   const playMove = () => {
@@ -188,26 +104,21 @@ export const createAudioEngine = (): AudioEngine => {
   const unlock = () => {
     ensureContext();
     if (!context) return;
-    if (context.state === 'suspended') {
-      void context.resume();
-    }
-    unlocked = true;
-    if (enabled) {
-      scheduleBgm();
+    if (context.state !== 'running') {
+      context
+        .resume()
+        .catch(() => {
+          // Ignore resume errors; user can retry by interacting again.
+        });
+      return;
     }
   };
 
   const setEnabled = (next: boolean) => {
     enabled = next;
-    if (!enabled) {
-      stopBgm();
-    } else if (unlocked) {
-      scheduleBgm();
-    }
   };
 
   const dispose = () => {
-    stopBgm();
     if (context) {
       void context.close();
       context = null;

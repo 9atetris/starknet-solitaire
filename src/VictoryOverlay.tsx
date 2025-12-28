@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 type VictoryStats = {
   moves: number;
   timeMs: number;
-  seed: number;
+  score: number;
 };
 
 type VictoryOverlayProps = {
@@ -24,6 +24,8 @@ const formatTime = (ms: number) => {
   const seconds = totalSeconds % 60;
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 };
+
+const formatScore = (value: number) => new Intl.NumberFormat().format(Math.max(0, Math.floor(value)));
 
 export default function VictoryOverlay({
   open,
@@ -93,20 +95,25 @@ export default function VictoryOverlay({
         </div>
       ) : null}
       <div className="victory-card">
-        <p className="victory-eyebrow">Klondike Complete</p>
-        <h2 className="victory-title">VICTORY!</h2>
-        <div className="victory-stats">
-          <div>
-            <span className="label">Moves</span>
-            <span className="value">{stats.moves}</span>
+        <div className="victory-head">
+          <div className="victory-copy">
+            <p className="victory-eyebrow">Klondike Complete</p>
+            <h2 className="victory-title">Clean Finish</h2>
+            <p className="victory-sub">Keep the rhythm or lock the score on-chain.</p>
           </div>
-          <div>
+          <div className="victory-score">
+            <span className="label">Score</span>
+            <span className="value">{formatScore(stats.score)}</span>
+          </div>
+        </div>
+        <div className="victory-metrics">
+          <div className="victory-metric">
             <span className="label">Time</span>
             <span className="value">{formatTime(stats.timeMs)}</span>
           </div>
-          <div>
-            <span className="label">Seed</span>
-            <span className="value">{stats.seed}</span>
+          <div className="victory-metric">
+            <span className="label">Steps</span>
+            <span className="value">{stats.moves}</span>
           </div>
         </div>
         <div className="victory-actions">

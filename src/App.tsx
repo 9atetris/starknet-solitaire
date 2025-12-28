@@ -74,6 +74,24 @@ const formatChainValue = (value: unknown, fallback = '—') => {
 const shortAddress = (value: string) =>
   value.length <= 12 ? value : `${value.slice(0, 6)}...${value.slice(-4)}`;
 
+const calcSessionScore = (timeSec: number, moves: number, streak = 1) => {
+  const safeTime = Math.min(86_400, Math.max(1, Math.floor(timeSec)));
+  const safeMoves = Math.min(500, Math.max(1, Math.floor(moves)));
+  const safeStreak = Math.min(10, Math.max(0, Math.floor(streak)));
+  const base = 10_000;
+  const maxTimeBonus = 6_000;
+  const timePenaltyPerSec = 2;
+  const maxMoveBonus = 4_000;
+  const movePenaltyPerMove = 10;
+  const timePenalty = safeTime * timePenaltyPerSec;
+  const timeBonus = timePenalty >= maxTimeBonus ? 0 : maxTimeBonus - timePenalty;
+  const movePenalty = safeMoves * movePenaltyPerMove;
+  const moveBonus = movePenalty >= maxMoveBonus ? 0 : maxMoveBonus - movePenalty;
+  const mult = 100 + safeStreak * 5;
+  const sum = base + timeBonus + moveBonus;
+  return Math.floor((sum * mult) / 100);
+};
+
 const toNumber = (value: unknown) => {
   if (typeof value === 'number') return Number.isFinite(value) ? value : null;
   if (typeof value === 'bigint') return Number(value);
@@ -215,10 +233,14 @@ export default function App() {
     const unlock = () => {
       audioRef.current?.unlock();
     };
-    window.addEventListener('pointerdown', unlock, { once: true });
+    const captureOnce = { capture: true, once: true } as const;
+    const captureOnly = { capture: true } as const;
+    window.addEventListener('pointerdown', unlock, captureOnce);
+    window.addEventListener('touchstart', unlock, captureOnce);
     window.addEventListener('keydown', unlock, { once: true });
     return () => {
-      window.removeEventListener('pointerdown', unlock);
+      window.removeEventListener('pointerdown', unlock, captureOnly);
+      window.removeEventListener('touchstart', unlock, captureOnly);
       window.removeEventListener('keydown', unlock);
       audioRef.current?.dispose();
     };
@@ -744,12 +766,13 @@ export default function App() {
     </>
   );
 
+  const elapsedSeconds = Math.max(0, Math.floor((now - startTime) / 1000));
+  const sessionScore = calcSessionScore(elapsedSeconds, history.present.moves, 1);
   const victoryStats = {
     moves: history.present.moves,
     timeMs: now - startTime,
-    seed,
+    score: sessionScore,
   };
-  const elapsedSeconds = Math.max(0, Math.floor((now - startTime) / 1000));
   const elapsedLabel = formatClock(elapsedSeconds);
   const walletLabel = address ? shortAddress(address) : 'Not connected';
   const onchainStatus = isConnected ? 'On-chain total' : 'Connect wallet';

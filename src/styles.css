@@ -1065,56 +1065,108 @@ button:disabled {
 .victory-card {
   position: relative;
   z-index: 2;
-  background: linear-gradient(135deg, rgba(15, 18, 33, 0.95), rgba(26, 30, 52, 0.98));
-  border-radius: 24px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 0 40px rgba(255, 79, 216, 0.25), 0 0 60px rgba(73, 198, 255, 0.25);
-  padding: 32px 36px;
-  min-width: min(480px, 90vw);
-  text-align: center;
+  background: linear-gradient(135deg, rgba(12, 15, 30, 0.98), rgba(20, 24, 44, 0.98));
+  border-radius: 26px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 24px 60px rgba(4, 6, 16, 0.6), 0 0 30px rgba(73, 198, 255, 0.22);
+  padding: 28px 30px;
+  width: min(560px, 92vw);
+  display: grid;
+  gap: 18px;
+  text-align: left;
 }
 
 .victory-eyebrow {
   text-transform: uppercase;
-  letter-spacing: 0.4em;
-  font-size: 0.7rem;
+  letter-spacing: 0.32em;
+  font-size: 0.62rem;
   color: rgba(233, 237, 255, 0.7);
-  margin: 0 0 12px;
+  margin: 0 0 8px;
 }
 
 .victory-title {
   font-family: 'Orbitron', sans-serif;
-  font-size: clamp(2.5rem, 6vw, 4rem);
-  margin: 0 0 20px;
-  color: var(--neon-green);
-  text-shadow: 0 0 18px rgba(67, 255, 178, 0.7), 0 0 32px rgba(73, 198, 255, 0.4);
-  animation: neonPulse 1.4s ease-in-out infinite;
+  font-size: clamp(2rem, 6vw, 3.1rem);
+  margin: 0;
+  color: #f7f8ff;
+  text-shadow: 0 0 18px rgba(73, 198, 255, 0.35);
+  letter-spacing: 0.08em;
 }
 
-.victory-stats {
+.victory-sub {
+  margin: 6px 0 0;
+  font-size: 0.8rem;
+  color: rgba(233, 237, 255, 0.65);
+}
+
+.victory-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.victory-copy {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-  margin-bottom: 24px;
+  gap: 4px;
 }
 
-.victory-stats .label {
-  display: block;
-  font-size: 0.7rem;
-  letter-spacing: 0.2em;
+.victory-score {
+  padding: 14px 18px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(73, 198, 255, 0.18), rgba(255, 79, 216, 0.18));
+  border: 1px solid rgba(73, 198, 255, 0.45);
+  display: grid;
+  gap: 6px;
+  min-width: 160px;
+  text-align: right;
+}
+
+.victory-score .label {
+  font-size: 0.6rem;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: rgba(233, 237, 255, 0.7);
+}
+
+.victory-score .value {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 1.5rem;
+  color: var(--neon-green);
+}
+
+.victory-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.victory-metric {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(8, 10, 22, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.victory-metric .label {
+  font-size: 0.6rem;
+  letter-spacing: 0.26em;
   text-transform: uppercase;
   color: var(--muted);
-  margin-bottom: 6px;
 }
 
-.victory-stats .value {
+.victory-metric .value {
   font-family: 'Orbitron', sans-serif;
-  font-size: 1.1rem;
+  font-size: 1.05rem;
   color: var(--text);
 }
 
 .victory-actions {
   display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 12px;
 }
 
@@ -1229,6 +1281,14 @@ button:disabled {
   body {
     height: 100svh;
     overflow: hidden;
+    overscroll-behavior: none;
+    touch-action: none;
+  }
+
+  #root,
+  .app {
+    overscroll-behavior: none;
+    touch-action: none;
   }
 
   .hud {
@@ -1258,31 +1318,41 @@ button:disabled {
   .board-shell {
     overflow: hidden;
     padding-bottom: calc(96px + env(safe-area-inset-bottom));
+    touch-action: none;
   }
 
   .table {
     height: 100%;
     min-height: 0;
     grid-template-rows: auto 1fr;
+    touch-action: none;
   }
 
   .tableau {
     min-height: 0;
     align-content: start;
+    touch-action: none;
   }
 
   .column {
     min-height: calc(var(--cardH) * 2.4);
     padding-bottom: calc(var(--cardH) * 1.2);
+    touch-action: none;
   }
 
   .column-cards {
     min-height: calc(var(--cardH) * 2.4);
   }
 
+  .pile,
+  .card {
+    touch-action: none;
+  }
+
   .score-overlay {
     align-items: flex-end;
     padding: 16px;
+    touch-action: pan-y;
   }
 
   .score-card {
@@ -1294,6 +1364,7 @@ button:disabled {
     overflow-y: auto;
     overflow-x: hidden;
     overscroll-behavior: contain;
+    touch-action: pan-y;
   }
 
   .score-columns {
@@ -1304,6 +1375,7 @@ button:disabled {
 
   .leaderboard-list {
     max-height: none;
+    touch-action: pan-y;
   }
 
   .score-grid {
@@ -1343,6 +1415,24 @@ button:disabled {
   .hud-actions .primary,
   .hud-actions .ghost {
     width: auto;
+  }
+
+  .victory-card {
+    padding: 22px;
+  }
+
+  .victory-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .victory-score {
+    width: 100%;
+    text-align: left;
+  }
+
+  .victory-actions {
+    grid-template-columns: 1fr;
   }
 }
 
