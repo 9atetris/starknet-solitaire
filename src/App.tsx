@@ -51,6 +51,21 @@ type HistoryState = {
   future: GameSnapshot[];
 };
 
+const formatClock = (seconds: number) => {
+  const minutes = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+};
+
+const formatChainValue = (value: unknown, fallback = '—') => {
+  if (value == null) return fallback;
+  if (typeof value === 'bigint') return value.toString();
+  return String(value);
+};
+
+const shortAddress = (value: string) =>
+  value.length <= 12 ? value : `${value.slice(0, 6)}...${value.slice(-4)}`;
+
 export default function App() {
   const [seed, setSeed] = useState(() => getDailySeed());
   const [history, setHistory] = useState<HistoryState>(() => ({
@@ -59,10 +74,12 @@ export default function App() {
     future: [],
   }));
   const [startTime, setStartTime] = useState(() => Date.now());
+  const [now, setNow] = useState(() => Date.now());
   const [victoryOpen, setVictoryOpen] = useState(false);
   const [victorySeen, setVictorySeen] = useState(false);
   const [boardPulse, setBoardPulse] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [dashboardOpen, setDashboardOpen] = useState(false);
   const [selected, setSelected] = useState<PileRef | null>(null);
   const [dragState, setDragState] = useState<DragState | null>(null);
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
@@ -81,6 +98,7 @@ export default function App() {
   const foundationRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const tableauRef = useRef<HTMLDivElement | null>(null);
   const { account, address, isConnected } = useAccount();
+  const dailyKey = getDailySeed();
   const { data: onchainTotal } = useReadContract({
     abi: SOLITAIRE_ABI,
     address: SOLITAIRE_ADDRESS,
@@ -90,7 +108,17 @@ export default function App() {
     retry: false,
     refetchInterval: false,
   });
-  const onchainTotalStr = onchainTotal != null ? (onchainTotal as any).toString() : '—';
+  const { data: onchainBest } = useReadContract({
+    abi: SOLITAIRE_ABI,
+    address: SOLITAIRE_ADDRESS,
+    functionName: 'get_my_best',
+    args: address ? [address, dailyKey] : undefined,
+    enabled: Boolean(address) && SOLITAIRE_ABI_READY,
+    retry: false,
+    refetchInterval: false,
+  });
+  const onchainTotalStr = formatChainValue(onchainTotal);
+  const onchainBestStr = formatChainValue(onchainBest);
   const clampU16 = (n: number) => Math.max(0, Math.min(65535, n | 0));
 
   const game = history.present.game;
@@ -98,6 +126,13 @@ export default function App() {
   const win = useMemo(() => {
     return game.foundations.every((pile) => pile.length === 13);
   }, [game.foundations]);
+
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      setNow(Date.now());
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, []);
 
   useEffect(() => {
     const onTouchStart = (event: TouchEvent) => {
@@ -175,6 +210,18 @@ export default function App() {
     setVictorySeen(false);
     setVictoryOpen(false);
   }, [win, victorySeen]);
+
+  useEffect(() => {
+    if (!dashboardOpen) return;
+    const handler = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setDashboardOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [dashboardOpen]);
 
   useEffect(() => {
     dragStateRef.current = dragState;
@@ -484,10 +531,21 @@ export default function App() {
   const openHelp = (event: React.MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
     setHelpOpen(true);
+    setDashboardOpen(false);
   };
 
   const closeHelp = () => {
     setHelpOpen(false);
+  };
+
+  const openDashboard = (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    setDashboardOpen(true);
+    setHelpOpen(false);
+  };
+
+  const closeDashboard = () => {
+    setDashboardOpen(false);
   };
 
   const submitResult = async () => {
@@ -536,11 +594,21 @@ export default function App() {
 
   const victoryStats = {
     moves: history.present.moves,
-    timeMs: Date.now() - startTime,
+    timeMs: now - startTime,
     seed,
   };
-  const onchainScore =
-    typeof onchainTotal === 'bigint' ? onchainTotal.toString() : onchainTotal ? String(onchainTotal) : '0';
+  const elapsedSeconds = Math.max(0, Math.floor((now - startTime) / 1000));
+  const elapsedLabel = formatClock(elapsedSeconds);
+  const walletLabel = address ? shortAddress(address) : 'Not connected';
+  const onchainStatus = isConnected ? 'On-chain total' : 'Connect wallet';
+  const submitStatusLabel =
+    submitStatus === 'success'
+      ? 'Synced'
+      : submitStatus === 'submitting'
+        ? 'Syncing'
+        : submitStatus === 'error'
+          ? 'Error'
+          : 'Idle';
 
   return (
     <div className={`app ${boardPulse ? 'win-pulse' : ''}`} onClick={onBackgroundClick}>
@@ -548,12 +616,37 @@ export default function App() {
         <div className="hud-left">
           <span className="hud-title">Neon Solitaire</span>
           <span className="hud-seed">Seed {seed}</span>
+          <div className="hud-mini">
+            <span>Moves {history.present.moves}</span>
+            <span>Time {elapsedLabel}</span>
+          </div>
         </div>
-        <div className="hud-stats">
-          <span>Score {onchainScore}</span>
-          <span>Total {onchainTotalStr}</span>
-          <span>Moves {history.present.moves}</span>
-          <span>Time {Math.floor((Date.now() - startTime) / 1000)}s</span>
+        <div className="hud-center">
+          <button
+            className="hud-dashboard"
+            type="button"
+            onClick={openDashboard}
+            aria-expanded={dashboardOpen}
+            aria-controls="score-dashboard"
+          >
+            <span className="hud-dashboard-label">Score dashboard</span>
+            <span className="hud-dashboard-value">{onchainTotalStr}</span>
+            <span className="hud-dashboard-sub">{onchainStatus}</span>
+          </button>
+          <div className="hud-stats">
+            <div className="stat-pill">
+              <span className="label">Daily best</span>
+              <span className="value">{onchainBestStr}</span>
+            </div>
+            <div className="stat-pill">
+              <span className="label">Moves</span>
+              <span className="value">{history.present.moves}</span>
+            </div>
+            <div className="stat-pill">
+              <span className="label">Time</span>
+              <span className="value">{elapsedLabel}</span>
+            </div>
+          </div>
         </div>
         <div className="hud-actions">
           <button className="ghost" onClick={resetGame}>
@@ -754,6 +847,82 @@ export default function App() {
           </button>
         </div>
       </aside>
+      <footer className="mobile-footer">
+        <button className="ghost" type="button" onClick={resetGame}>
+          New
+        </button>
+        <button
+          className="primary"
+          type="button"
+          onClick={openDashboard}
+          aria-expanded={dashboardOpen}
+          aria-controls="score-dashboard"
+        >
+          Dashboard
+        </button>
+        <button className="ghost" type="button" onClick={openHelp}>
+          Help
+        </button>
+      </footer>
+      {dashboardOpen ? (
+        <div
+          className="score-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Score dashboard"
+          onClick={closeDashboard}
+        >
+          <div
+            className="score-card"
+            id="score-dashboard"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="score-top">
+              <div>
+                <p className="score-eyebrow">On-chain + Session</p>
+                <h2>Score Dashboard</h2>
+              </div>
+              <button className="score-close" type="button" onClick={closeDashboard} aria-label="Close dashboard">
+                ×
+              </button>
+            </div>
+            <div className="score-grid">
+              <div className="score-stat highlight">
+                <span className="label">On-chain total</span>
+                <span className="value">{onchainTotalStr}</span>
+              </div>
+              <div className="score-stat">
+                <span className="label">Daily best</span>
+                <span className="value">{onchainBestStr}</span>
+              </div>
+              <div className="score-stat">
+                <span className="label">Moves</span>
+                <span className="value">{history.present.moves}</span>
+              </div>
+              <div className="score-stat">
+                <span className="label">Time</span>
+                <span className="value">{elapsedLabel}</span>
+              </div>
+              <div className="score-stat">
+                <span className="label">Seed</span>
+                <span className="value">{seed}</span>
+              </div>
+              <div className="score-stat">
+                <span className="label">Wallet</span>
+                <span className="value">{walletLabel}</span>
+              </div>
+            </div>
+            <div className="score-foot">
+              <span className={`score-status ${submitStatus}`}>Sync {submitStatusLabel}</span>
+              {submitTx ? (
+                <span className="score-tx">Tx {shortAddress(submitTx)}</span>
+              ) : submitError ? (
+                <span className="score-error">Submit failed</span>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      ) : null}
       <VictoryOverlay
         open={victoryOpen}
         stats={victoryStats}
