@@ -1,0 +1,30 @@
+{
+  "name": "starknet-solitaire",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "tunnel": "cloudflared tunnel --url http://127.0.0.1:5173",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@cartridge/connector": "^0.11.3",
+    "@cartridge/controller": "^0.11.3",
+    "@starknet-react/chains": "^5.0.3",
+    "@starknet-react/core": "^5.0.3",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "starknet": "^8.5.2"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.4",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "typescript": "^5.6.2",
+    "vite": "^6.0.0",
+    "vite-plugin-top-level-await": "^1.4.4",
+    "vite-plugin-wasm": "^3.4.1"
+  }
+}
