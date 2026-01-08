@@ -1,7 +1,7 @@
 import solitaireAbi from './abi/solitaire.json';
 
 export const SOLITAIRE_ADDRESS =
-  '0x022a5b0a44b5fe8aa041699c4c60a890490b296927a93b4acc9cf92af498a743';
+  '0x0003b1561355a86725b56c6ae11a1a3f979eb097f30bc2583dfd547a8062f777';
 
 const rawAbi = solitaireAbi as unknown;
 const normalizedAbi = Array.isArray(rawAbi)

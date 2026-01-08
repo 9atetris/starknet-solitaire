@@ -13,12 +13,15 @@ struct Entry {
 #[starknet::contract]
 mod solitaire_v1 {
     use super::{Entry};
+    use starknet::class_hash::ClassHash;
     use starknet::contract_address::ContractAddress;
     use starknet::storage::{
         Map, StorageMapReadAccess, StorageMapWriteAccess, StoragePointerReadAccess,
         StoragePointerWriteAccess,
     };
     use starknet::get_caller_address;
+    use starknet::syscalls::replace_class_syscall;
+    use core::panic_with_felt252;
 
     // ========= Storage =========
     #[storage]
@@ -94,6 +97,15 @@ mod solitaire_v1 {
     fn set_paused(ref self: ContractState, paused: bool) {
         only_owner(@self);
         self.paused.write(paused);
+    }
+
+    #[external(v0)]
+    fn upgrade(ref self: ContractState, new_class_hash: ClassHash) {
+        only_owner(@self);
+        match replace_class_syscall(new_class_hash) {
+            Result::Ok(()) => (),
+            Result::Err(_) => panic_with_felt252('UPGRADE_FAILED'),
+        }
     }
 
     #[external(v0)]
