@@ -1404,10 +1404,13 @@ button:disabled {
     align-items: flex-end;
     padding: 16px;
     touch-action: pan-y;
+    justify-content: center;
   }
 
   .score-card {
-    width: min(560px, 100%);
+    width: 100%;
+    max-width: 520px;
+    box-sizing: border-box;
     max-height: min(78vh, 640px);
     border-radius: 20px;
     padding-bottom: calc(20px + env(safe-area-inset-bottom));
