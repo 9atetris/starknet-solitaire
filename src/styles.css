@@ -1638,36 +1638,44 @@ button:disabled {
 
 @media (max-width: 900px) and (orientation: landscape) {
   :root {
-    --cardW: clamp(52px, 7vw, 70px);
+    --cardW: clamp(46px, 6vw, 60px);
     --cardH: calc(var(--cardW) * 1.43);
-    --stack-step: clamp(12px, calc(var(--cardH) * 0.22), 22px);
+    --stack-step: clamp(10px, calc(var(--cardH) * 0.18), 18px);
   }
 
   .app {
     grid-template-columns: 1fr;
-    grid-template-rows: auto 1fr;
+    grid-template-rows: 1fr;
     height: 100svh;
     min-height: 0;
-    gap: 8px;
-    padding: calc(10px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right))
-      calc(10px + env(safe-area-inset-bottom)) calc(12px + env(safe-area-inset-left));
+    gap: 0;
+    padding: calc(6px + env(safe-area-inset-top)) calc(8px + env(safe-area-inset-right))
+      calc(6px + env(safe-area-inset-bottom)) calc(8px + env(safe-area-inset-left));
   }
 
   .header {
-    flex-wrap: wrap;
+    position: fixed;
+    top: calc(8px + env(safe-area-inset-top));
+    right: calc(8px + env(safe-area-inset-right));
+    z-index: 10;
+    flex-wrap: nowrap;
     align-items: center;
-    max-height: 18svh;
-    gap: 10px;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: 12px;
+    background: rgba(8, 10, 22, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
   }
 
   .header h1 {
-    font-size: clamp(1rem, 2.4vw, 1.3rem);
-    margin: 2px 0 4px;
+    font-size: clamp(0.82rem, 1.9vw, 1rem);
+    margin: 0;
+    white-space: nowrap;
   }
 
   .sub {
-    font-size: 0.7rem;
-    white-space: nowrap;
+    display: none;
   }
 
   .actions {
@@ -1677,13 +1685,14 @@ button:disabled {
     gap: 6px;
     align-items: center;
     justify-content: flex-end;
+    width: auto;
   }
 
   .primary,
   .ghost {
     width: auto;
-    padding: 5px 8px;
-    font-size: 0.68rem;
+    padding: 4px 7px;
+    font-size: 0.64rem;
   }
 
   .label-long {
@@ -1705,11 +1714,12 @@ button:disabled {
     min-height: 0;
     height: auto;
     overflow-y: auto;
-    padding-bottom: 80px;
+    padding: 0;
   }
 
   .table {
     height: 100%;
+    padding-top: 8px;
   }
 
   .top-row {
