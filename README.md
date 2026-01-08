@@ -35,6 +35,7 @@ npm run tunnel
 - The wallet button is wired to the Cartridge Controller SDK.
 - Daily seed is derived from UTC date for now; swap in on-chain seed logic when you wire the contract.
 - Contract address (Sepolia): `0x0003b1561355a86725b56c6ae11a1a3f979eb097f30bc2583dfd547a8062f777`.
+- Upgrades: the contract exposes `upgrade(class_hash)` (owner-only) for self-upgrade; maintain storage layout compatibility across versions.
 
 ## Cairo reference
 
