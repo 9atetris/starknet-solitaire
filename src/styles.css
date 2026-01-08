@@ -1636,11 +1636,91 @@ button:disabled {
   }
 }
 
-@media (max-width: 900px) and (orientation: landscape) {
+@media (orientation: landscape) and (max-height: 700px) {
   :root {
-    --cardW: clamp(46px, 6vw, 60px);
+    --cardW: clamp(40px, 5vw, 54px);
     --cardH: calc(var(--cardW) * 1.43);
-    --stack-step: clamp(10px, calc(var(--cardH) * 0.18), 18px);
+    --stack-step: clamp(8px, calc(var(--cardH) * 0.17), 16px);
+  }
+
+  body {
+    overflow: hidden;
+  }
+
+  .hud {
+    position: fixed !important;
+    top: calc(8px + env(safe-area-inset-top)) !important;
+    right: calc(8px + env(safe-area-inset-right)) !important;
+    left: auto !important;
+    z-index: 50 !important;
+    width: min(260px, 46vw) !important;
+    padding: 6px 8px !important;
+    gap: 6px !important;
+    border-radius: 10px !important;
+    background: rgba(8, 10, 22, 0.82);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.35);
+  }
+
+  .hud .hud-seed,
+  .hud .hud-center {
+    display: none !important;
+  }
+
+  .hud .hud-left {
+    display: inline-flex !important;
+    gap: 8px !important;
+    align-items: center !important;
+    min-width: 0;
+  }
+
+  .hud .hud-title {
+    font-size: 0.9rem !important;
+    letter-spacing: 0.08em;
+    white-space: nowrap;
+  }
+
+  .hud .hud-mini {
+    display: inline-flex !important;
+    font-size: 0.65rem !important;
+    gap: 8px !important;
+    color: var(--muted);
+  }
+
+  .hud .hud-actions {
+    flex-wrap: nowrap !important;
+    gap: 6px !important;
+    justify-content: flex-end !important;
+  }
+
+  .hud .hud-actions button {
+    padding: 4px 6px !important;
+    font-size: 0.7rem !important;
+    width: auto;
+  }
+
+  .hud .wallet-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .hud .hud-actions .wallet-chip {
+    padding: 4px 8px;
+    font-size: 0.68rem;
+  }
+
+  .label-long {
+    display: none !important;
+  }
+
+  .label-short {
+    display: inline !important;
+  }
+
+  .hud .help-toggle {
+    width: 26px !important;
+    height: 26px !important;
   }
 
   .app {
@@ -1650,63 +1730,11 @@ button:disabled {
     min-height: 0;
     gap: 0;
     padding: calc(6px + env(safe-area-inset-top)) calc(8px + env(safe-area-inset-right))
-      calc(6px + env(safe-area-inset-bottom)) calc(8px + env(safe-area-inset-left));
+      calc(8px + env(safe-area-inset-bottom)) calc(8px + env(safe-area-inset-left));
   }
 
-  .header {
-    position: fixed;
-    top: calc(8px + env(safe-area-inset-top));
-    right: calc(8px + env(safe-area-inset-right));
-    z-index: 10;
-    flex-wrap: nowrap;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 10px;
-    border-radius: 12px;
-    background: rgba(8, 10, 22, 0.7);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
-  }
-
-  .header h1 {
-    font-size: clamp(0.82rem, 1.9vw, 1rem);
-    margin: 0;
-    white-space: nowrap;
-  }
-
-  .sub {
+  .mobile-footer {
     display: none;
-  }
-
-  .actions {
-    width: 100%;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    align-items: center;
-    justify-content: flex-end;
-    width: auto;
-  }
-
-  .primary,
-  .ghost {
-    width: auto;
-    padding: 4px 7px;
-    font-size: 0.64rem;
-  }
-
-  .label-long {
-    display: none;
-  }
-
-  .label-short {
-    display: inline;
-  }
-
-  .help-toggle {
-    width: 28px;
-    height: 28px;
-    justify-self: end;
   }
 
   .board-shell {
@@ -1714,36 +1742,37 @@ button:disabled {
     min-height: 0;
     height: auto;
     overflow-y: auto;
-    padding: 0;
+    padding: 0 2px calc(10px + env(safe-area-inset-bottom)) !important;
   }
 
   .table {
     height: 100%;
-    padding-top: 8px;
+    padding-top: 0 !important;
+    gap: 6px;
   }
 
   .top-row {
-    gap: 8px;
+    gap: 6px;
   }
 
   .stock-area,
   .foundation-area {
-    gap: 6px;
+    gap: 4px;
   }
 
   .tableau {
     grid-template-columns: repeat(7, minmax(0, 1fr));
-    gap: 6px;
+    gap: 4px;
   }
 
   .column {
-    padding: 6px;
-    min-height: calc(var(--cardH) * 1.2);
+    padding: 4px;
+    min-height: calc(var(--cardH) * 1.1);
   }
 
   .column-header {
     font-size: 0.6rem;
-    margin-bottom: 6px;
+    margin-bottom: 4px;
   }
 }
 

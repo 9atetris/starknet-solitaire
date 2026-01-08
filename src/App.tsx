@@ -1269,6 +1269,22 @@ export default function App() {
             document.body
           )
         : null}
+      <div
+        style={{
+          position: 'fixed',
+          left: 8,
+          bottom: 8,
+          zIndex: 999999,
+          background: 'rgba(255, 0, 0, 0.7)',
+          color: '#fff',
+          padding: '6px 8px',
+          borderRadius: 8,
+          fontSize: 12,
+          letterSpacing: '0.08em',
+        }}
+      >
+        BUILD 2026-01-09-02
+      </div>
     </div>
   );
 }
