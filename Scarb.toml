@@ -10,3 +10,4 @@ starknet = ">=2.15.0"
 path = "contracts/solitaire.cairo"
 
 [[target.starknet-contract]]
+casm = true

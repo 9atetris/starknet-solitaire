@@ -40,6 +40,8 @@ mod solitaire_v1 {
 
         leaderboard: Map<(u16, u32, u8), Entry>, // (epoch, day, idx)->Entry
         leaderboard_len: Map<(u16, u32), u8>,    // (epoch, day)->len (0..10)
+        leaderboard_alltime: Map<(u16, u8), Entry>, // (epoch, idx)->Entry
+        leaderboard_alltime_len: Map<u16, u8>,      // (epoch)->len (0..10)
 
         achievements: Map<ContractAddress, u256>, // future
         commits: Map<(ContractAddress, u32), felt252>, // future
@@ -147,6 +149,19 @@ mod solitaire_v1 {
         // caller should ensure idx < 10
         let epoch = self.epoch.read();
         self.leaderboard.read((epoch, day, idx))
+    }
+
+    #[external(v0)]
+    fn get_alltime_len(self: @ContractState) -> u8 {
+        let epoch = self.epoch.read();
+        self.leaderboard_alltime_len.read(epoch)
+    }
+
+    #[external(v0)]
+    fn get_alltime_top_entry(self: @ContractState, idx: u8) -> Entry {
+        // caller should ensure idx < 10
+        let epoch = self.epoch.read();
+        self.leaderboard_alltime.read((epoch, idx))
     }
 
     // ========= Points formula (V1) =========
@@ -295,6 +310,60 @@ mod solitaire_v1 {
         LeaderboardUpdated(day, pos, entry.player, entry.points);
     }
 
+    fn upsert_top10_alltime(ref self: ContractState, epoch: u16, entry: Entry) {
+        let mut len = self.leaderboard_alltime_len.read(epoch);
+        if len > 10_u8 { len = 10_u8; }
+
+        // Remove existing entry for the player if present
+        let mut i: u8 = 0_u8;
+        while i < len {
+            let cur = self.leaderboard_alltime.read((epoch, i));
+            if cur.player == entry.player {
+                let mut j = i;
+                while j + 1_u8 < len {
+                    let nxt = self.leaderboard_alltime.read((epoch, j + 1_u8));
+                    self.leaderboard_alltime.write((epoch, j), nxt);
+                    j = j + 1_u8;
+                }
+                len = len - 1_u8;
+                break;
+            }
+            i = i + 1_u8;
+        }
+
+        // Find insert position
+        let mut pos: u8 = 0_u8;
+        let mut inserted: bool = false;
+        while pos < len {
+            let cur = self.leaderboard_alltime.read((epoch, pos));
+            if better_than(entry, cur) {
+                let mut k = if len < 10_u8 { len } else { 9_u8 };
+                while k > pos {
+                    let prev = self.leaderboard_alltime.read((epoch, k - 1_u8));
+                    self.leaderboard_alltime.write((epoch, k), prev);
+                    k = k - 1_u8;
+                }
+                self.leaderboard_alltime.write((epoch, pos), entry);
+                inserted = true;
+                break;
+            }
+            pos = pos + 1_u8;
+        }
+
+        if !inserted {
+            if len < 10_u8 {
+                self.leaderboard_alltime.write((epoch, len), entry);
+                inserted = true;
+                pos = len;
+            } else {
+                return;
+            }
+        }
+
+        let new_len = if len < 10_u8 { len + 1_u8 } else { 10_u8 };
+        self.leaderboard_alltime_len.write(epoch, new_len);
+    }
+
     // ========= Main submit (B: delta only) =========
     #[external(v0)]
     fn submit_result(ref self: ContractState, day: u32, time_sec: u32, moves: u16) {
@@ -340,6 +409,7 @@ mod solitaire_v1 {
         // leaderboard uses new_points (not delta)
         let entry = Entry { player, points: new_points, time_sec, moves };
         upsert_top10(ref self, epoch, day, entry);
+        upsert_top10_alltime(ref self, epoch, entry);
 
         // emit
         ResultSubmitted(player, day, new_points, delta, total_now, time_sec, moves);
