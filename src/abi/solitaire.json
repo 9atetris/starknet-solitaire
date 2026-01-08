@@ -204,6 +204,33 @@
   },
   {
     "type": "function",
+    "name": "get_alltime_len",
+    "inputs": [],
+    "outputs": [
+      {
+        "type": "core::integer::u8"
+      }
+    ],
+    "state_mutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "get_alltime_top_entry",
+    "inputs": [
+      {
+        "name": "idx",
+        "type": "core::integer::u8"
+      }
+    ],
+    "outputs": [
+      {
+        "type": "solitaire::Entry"
+      }
+    ],
+    "state_mutability": "view"
+  },
+  {
+    "type": "function",
     "name": "submit_result",
     "inputs": [
       {

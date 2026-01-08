@@ -173,9 +173,17 @@ export default function App() {
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
   const [submitTx, setSubmitTx] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [leaderboardEntries, setLeaderboardEntries] = useState<LeaderboardEntry[]>([]);
-  const [leaderboardStatus, setLeaderboardStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
-  const [leaderboardError, setLeaderboardError] = useState<string | null>(null);
+  const [leaderboardTab, setLeaderboardTab] = useState<'daily' | 'alltime'>('daily');
+  const [leaderboardDailyEntries, setLeaderboardDailyEntries] = useState<LeaderboardEntry[]>([]);
+  const [leaderboardAlltimeEntries, setLeaderboardAlltimeEntries] = useState<LeaderboardEntry[]>([]);
+  const [leaderboardDailyStatus, setLeaderboardDailyStatus] = useState<
+    'idle' | 'loading' | 'success' | 'error'
+  >('idle');
+  const [leaderboardAlltimeStatus, setLeaderboardAlltimeStatus] = useState<
+    'idle' | 'loading' | 'success' | 'error'
+  >('idle');
+  const [leaderboardDailyError, setLeaderboardDailyError] = useState<string | null>(null);
+  const [leaderboardAlltimeError, setLeaderboardAlltimeError] = useState<string | null>(null);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const dragStateRef = useRef<DragState | null>(null);
   const audioRef = useRef<ReturnType<typeof createAudioEngine> | null>(null);
@@ -346,41 +354,50 @@ export default function App() {
     if (!SOLITAIRE_ABI_READY) return;
     let active = true;
 
-    const fetchLeaderboard = async () => {
-      setLeaderboardStatus('loading');
-      setLeaderboardError(null);
+    const contract = new Contract({
+      abi: SOLITAIRE_ABI as any,
+      address: SOLITAIRE_ADDRESS,
+      providerOrAccount: provider as any,
+    });
+
+    const fetchLeaderboard = async (scope: 'daily' | 'alltime') => {
+      const setStatus = scope === 'daily' ? setLeaderboardDailyStatus : setLeaderboardAlltimeStatus;
+      const setError = scope === 'daily' ? setLeaderboardDailyError : setLeaderboardAlltimeError;
+      const setEntries = scope === 'daily' ? setLeaderboardDailyEntries : setLeaderboardAlltimeEntries;
+      setStatus('loading');
+      setError(null);
       try {
-        const contract = new Contract({
-          abi: SOLITAIRE_ABI as any,
-          address: SOLITAIRE_ADDRESS,
-          providerOrAccount: provider as any,
-        });
-        const lenRaw = await contract.get_leaderboard_len(dailyKey);
+        const lenRaw =
+          scope === 'daily' ? await contract.get_leaderboard_len(dailyKey) : await contract.get_alltime_len();
         const lenValue = Math.min(10, toNumber(lenRaw) ?? 0);
         if (lenValue <= 0) {
           if (active) {
-            setLeaderboardEntries([]);
-            setLeaderboardStatus('success');
+            setEntries([]);
+            setStatus('success');
           }
           return;
         }
         const indices = Array.from({ length: lenValue }, (_, index) => index);
-        const entriesRaw = await Promise.all(indices.map((index) => contract.get_top_entry(dailyKey, index)));
+        const entriesRaw =
+          scope === 'daily'
+            ? await Promise.all(indices.map((index) => contract.get_top_entry(dailyKey, index)))
+            : await Promise.all(indices.map((index) => contract.get_alltime_top_entry(index)));
         const entries = entriesRaw
           .map((entry) => normalizeEntry(entry))
           .filter((entry): entry is LeaderboardEntry => Boolean(entry));
         if (!active) return;
-        setLeaderboardEntries(entries);
-        setLeaderboardStatus('success');
+        setEntries(entries);
+        setStatus('success');
       } catch (err) {
         if (!active) return;
-        setLeaderboardEntries([]);
-        setLeaderboardStatus('error');
-        setLeaderboardError(err instanceof Error ? err.message : String(err));
+        setEntries([]);
+        setStatus('error');
+        setError(err instanceof Error ? err.message : String(err));
       }
     };
 
-    fetchLeaderboard();
+    fetchLeaderboard('daily');
+    fetchLeaderboard('alltime');
 
     return () => {
       active = false;
@@ -784,16 +801,22 @@ export default function App() {
         : submitStatus === 'error'
           ? 'Error'
           : 'Idle';
+  const currentLeaderboardEntries =
+    leaderboardTab === 'daily' ? leaderboardDailyEntries : leaderboardAlltimeEntries;
+  const currentLeaderboardStatus =
+    leaderboardTab === 'daily' ? leaderboardDailyStatus : leaderboardAlltimeStatus;
+  const currentLeaderboardError =
+    leaderboardTab === 'daily' ? leaderboardDailyError : leaderboardAlltimeError;
   const leaderboardStatusLabel =
-    leaderboardStatus === 'loading'
+    currentLeaderboardStatus === 'loading'
       ? 'Loading'
-      : leaderboardStatus === 'error'
+      : currentLeaderboardStatus === 'error'
         ? 'Unavailable'
-        : leaderboardStatus === 'success'
+        : currentLeaderboardStatus === 'success'
           ? 'Ready'
           : 'Idle';
   const leaderboardChipLabel =
-    leaderboardStatus === 'success' ? `Top ${leaderboardEntries.length}/10` : leaderboardStatusLabel;
+    currentLeaderboardStatus === 'success' ? `Top ${currentLeaderboardEntries.length}/10` : leaderboardStatusLabel;
 
   return (
     <div className={`app ${boardPulse ? 'win-pulse' : ''}`} onClick={onBackgroundClick}>
@@ -1114,25 +1137,47 @@ export default function App() {
                     <p className="score-section-eyebrow">Top 10</p>
                     <h3>Leaderboard</h3>
                   </div>
-                  <span
-                    className={`score-chip ${leaderboardStatus === 'error' ? 'danger' : ''} ${
-                      leaderboardStatus === 'loading' ? 'pulse' : ''
-                    }`}
-                  >
-                    {leaderboardChipLabel}
-                  </span>
+                  <div className="leaderboard-controls">
+                    <div className="leaderboard-tabs" role="tablist" aria-label="Leaderboard range">
+                      <button
+                        type="button"
+                        className={`leaderboard-tab ${leaderboardTab === 'daily' ? 'active' : ''}`}
+                        onClick={() => setLeaderboardTab('daily')}
+                        role="tab"
+                        aria-selected={leaderboardTab === 'daily'}
+                      >
+                        Today
+                      </button>
+                      <button
+                        type="button"
+                        className={`leaderboard-tab ${leaderboardTab === 'alltime' ? 'active' : ''}`}
+                        onClick={() => setLeaderboardTab('alltime')}
+                        role="tab"
+                        aria-selected={leaderboardTab === 'alltime'}
+                      >
+                        All-time
+                      </button>
+                    </div>
+                    <span
+                      className={`score-chip ${currentLeaderboardStatus === 'error' ? 'danger' : ''} ${
+                        currentLeaderboardStatus === 'loading' ? 'pulse' : ''
+                      }`}
+                    >
+                      {leaderboardChipLabel}
+                    </span>
+                  </div>
                 </div>
                 <div className="leaderboard-list">
-                  {leaderboardStatus === 'loading' ? (
+                  {currentLeaderboardStatus === 'loading' ? (
                     <div className="leaderboard-empty">Loading leaderboard...</div>
-                  ) : leaderboardStatus === 'error' ? (
-                    <div className="leaderboard-empty error" title={leaderboardError ?? undefined}>
+                  ) : currentLeaderboardStatus === 'error' ? (
+                    <div className="leaderboard-empty error" title={currentLeaderboardError ?? undefined}>
                       Unable to load leaderboard
                     </div>
-                  ) : leaderboardEntries.length === 0 ? (
+                  ) : currentLeaderboardEntries.length === 0 ? (
                     <div className="leaderboard-empty">No scores yet. Be the first.</div>
                   ) : (
-                    leaderboardEntries.map((entry, index) => {
+                    currentLeaderboardEntries.map((entry, index) => {
                       const rank = index + 1;
                       const playerLabel = formatPlayer(entry.player);
                       const isSelf =

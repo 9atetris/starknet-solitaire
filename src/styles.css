@@ -632,6 +632,39 @@ button:disabled {
   color: var(--neon-pink);
 }
 
+.leaderboard-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.leaderboard-tabs {
+  display: inline-flex;
+  gap: 6px;
+  padding: 4px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.leaderboard-tab {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 6px 10px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+
+.leaderboard-tab.active {
+  color: #05060f;
+  background: linear-gradient(130deg, rgba(73, 198, 255, 0.85), rgba(255, 79, 216, 0.8));
+  box-shadow: 0 0 14px rgba(73, 198, 255, 0.25);
+}
+
 .top-row {
   display: flex;
   justify-content: flex-start;
