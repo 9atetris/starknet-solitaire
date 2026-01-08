@@ -34,6 +34,7 @@ npm run tunnel
 - The game runs fully in the client for responsiveness.
 - The wallet button is wired to the Cartridge Controller SDK.
 - Daily seed is derived from UTC date for now; swap in on-chain seed logic when you wire the contract.
+- Contract address (Sepolia): `0x06977d476524abb3b5e5a59753fe54077fc1c23f0222015f784fef6167fc3be2`.
 
 ## Cairo reference
 
