@@ -199,6 +199,7 @@ export default function App() {
   const columnRefs = useRef<Array<HTMLDivElement | null>>([]);
   const foundationRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const tableauRef = useRef<HTMLDivElement | null>(null);
+  const ambientStartedRef = useRef(false);
   const { account, address, isConnected } = useAccount();
   const { provider } = useProvider();
   const dailyKey = getDailySeed();
@@ -259,9 +260,24 @@ export default function App() {
     audioRef.current?.setEnabled(soundEnabled);
     if (soundEnabled) {
       audioRef.current?.playAmbient?.();
+      ambientStartedRef.current = true;
     } else {
       audioRef.current?.stopAmbient?.();
     }
+  }, [soundEnabled]);
+
+  useEffect(() => {
+    const startAmbient = () => {
+      if (!soundEnabled || ambientStartedRef.current) return;
+      audioRef.current?.playAmbient?.();
+      ambientStartedRef.current = true;
+    };
+    window.addEventListener('pointerdown', startAmbient, { passive: true });
+    window.addEventListener('touchstart', startAmbient, { passive: true });
+    return () => {
+      window.removeEventListener('pointerdown', startAmbient);
+      window.removeEventListener('touchstart', startAmbient);
+    };
   }, [soundEnabled]);
 
   useEffect(() => {
@@ -1267,11 +1283,13 @@ export default function App() {
             <div className="help-sound">
               <p className="help-sound-label">Sound</p>
               <div className="help-sound-actions">
-                <button className="ghost" type="button" onClick={() => setSoundEnabled(true)}>
-                  Sound on
-                </button>
-                <button className="ghost" type="button" onClick={() => setSoundEnabled(false)}>
-                  Sound off
+                <button
+                  className={`help-sound-toggle ${soundEnabled ? 'active' : ''}`}
+                  type="button"
+                  onClick={() => setSoundEnabled((prev) => !prev)}
+                  aria-pressed={soundEnabled}
+                >
+                  {soundEnabled ? 'Sound on' : 'Sound off'}
                 </button>
               </div>
             </div>

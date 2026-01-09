@@ -141,7 +141,7 @@ export const createAudioEngine = (): AudioEngine => {
     if (musicActive) return;
     musicActive = true;
     spawnAmbientChord();
-    musicTimer = window.setInterval(spawnAmbientChord, 5500);
+    musicTimer = window.setInterval(spawnAmbientChord, 6500);
   };
 
   const stopAmbient = () => {
