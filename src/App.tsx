@@ -184,7 +184,7 @@ export default function App() {
   >('idle');
   const [leaderboardDailyError, setLeaderboardDailyError] = useState<string | null>(null);
   const [leaderboardAlltimeError, setLeaderboardAlltimeError] = useState<string | null>(null);
-  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [soundEnabled, setSoundEnabled] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const dragStateRef = useRef<DragState | null>(null);
   const audioRef = useRef<ReturnType<typeof createAudioEngine> | null>(null);
