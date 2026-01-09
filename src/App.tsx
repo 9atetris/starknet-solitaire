@@ -243,8 +243,8 @@ export default function App() {
     const unlock = () => {
       audioRef.current?.unlock();
       if (soundEnabled && !ambientStartedRef.current) {
-        audioRef.current?.playAmbient?.();
-        ambientStartedRef.current = true;
+        const ok = audioRef.current?.playAmbient?.();
+        if (ok) ambientStartedRef.current = true;
       }
     };
     const captureOnce = { capture: true, once: true } as const;
@@ -263,18 +263,19 @@ export default function App() {
   useEffect(() => {
     audioRef.current?.setEnabled(soundEnabled);
     if (soundEnabled) {
-      audioRef.current?.playAmbient?.();
-      ambientStartedRef.current = true;
+      const ok = audioRef.current?.playAmbient?.();
+      if (ok) ambientStartedRef.current = true;
     } else {
       audioRef.current?.stopAmbient?.();
+      ambientStartedRef.current = false;
     }
   }, [soundEnabled]);
 
   useEffect(() => {
     const startAmbient = () => {
       if (!soundEnabled || ambientStartedRef.current) return;
-      audioRef.current?.playAmbient?.();
-      ambientStartedRef.current = true;
+      const ok = audioRef.current?.playAmbient?.();
+      if (ok) ambientStartedRef.current = true;
     };
     window.addEventListener('pointerdown', startAmbient, { passive: true });
     window.addEventListener('touchstart', startAmbient, { passive: true });

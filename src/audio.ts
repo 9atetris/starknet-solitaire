@@ -2,7 +2,7 @@ type AudioEngine = {
   unlock: () => void;
   playMove: () => void;
   playWin: () => void;
-  playAmbient: () => void;
+  playAmbient: () => boolean;
   stopAmbient: () => void;
   setEnabled: (enabled: boolean) => void;
   dispose: () => void;
@@ -12,7 +12,7 @@ const createNoopEngine = (): AudioEngine => ({
   unlock: () => {},
   playMove: () => {},
   playWin: () => {},
-  playAmbient: () => {},
+  playAmbient: () => false,
   stopAmbient: () => {},
   setEnabled: () => {},
   dispose: () => {},
@@ -132,16 +132,27 @@ export const createAudioEngine = (): AudioEngine => {
   };
 
   const playAmbient = () => {
-    if (!enabled) return;
+    if (!enabled) return false;
     ensureContext();
-    if (!context) return;
+    if (!context) return false;
+    const startLoop = () => {
+      if (musicActive) return;
+      musicActive = true;
+      spawnAmbientChord();
+      musicTimer = window.setInterval(spawnAmbientChord, 6500);
+      return true;
+    };
     if (context.state === 'suspended') {
-      void context.resume().catch(() => {});
+      void context
+        .resume()
+        .then(() => {
+          if (!enabled) return false;
+          return startLoop();
+        })
+        .catch(() => {});
+      return false;
     }
-    if (musicActive) return;
-    musicActive = true;
-    spawnAmbientChord();
-    musicTimer = window.setInterval(spawnAmbientChord, 6500);
+    return startLoop() ?? false;
   };
 
   const stopAmbient = () => {
@@ -163,12 +174,17 @@ export const createAudioEngine = (): AudioEngine => {
     if (context.state !== 'running') {
       context
         .resume()
+        .then(() => {
+          if (enabled) {
+            playAmbient();
+          }
+        })
         .catch(() => {
           // Ignore resume errors; user can retry by interacting again.
         });
       return;
     }
-    if (musicActive) {
+    if (enabled) {
       playAmbient();
     }
   };
