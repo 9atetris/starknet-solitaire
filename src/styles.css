@@ -1638,9 +1638,9 @@ button:disabled {
 
 @media (orientation: landscape) and (max-height: 700px) {
   :root {
-    --cardW: clamp(40px, 5vw, 54px);
+    --cardW: clamp(40px, 9vh, 56px);
     --cardH: calc(var(--cardW) * 1.43);
-    --stack-step: clamp(8px, calc(var(--cardH) * 0.17), 16px);
+    --stack-step: clamp(8px, 2.2vh, 16px);
   }
 
   body {
@@ -1693,12 +1693,13 @@ button:disabled {
   }
 
   .hud .hud-actions {
-    display: flex !important;
+    display: grid !important;
+    grid-template-columns: auto auto !important;
+    grid-auto-rows: auto !important;
+    gap: 6px !important;
+    justify-content: end !important;
     align-items: center !important;
-    gap: 8px !important;
-    flex-wrap: nowrap !important;
     white-space: nowrap !important;
-    justify-content: flex-end !important;
   }
 
   .hud .hud-actions button {
@@ -1712,11 +1713,18 @@ button:disabled {
     display: inline-flex;
     align-items: center;
     gap: 6px;
+    max-width: 44vw !important;
+    overflow: hidden !important;
+    grid-column: 1 / -1 !important;
+    justify-self: end !important;
   }
 
   .hud .hud-actions .wallet-chip {
     padding: 4px 8px;
     font-size: 0.68rem;
+    max-width: 44vw !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
   }
 
   .label-long {
@@ -1752,12 +1760,16 @@ button:disabled {
     height: auto;
     overflow-y: auto;
     padding: 0 2px calc(10px + env(safe-area-inset-bottom)) !important;
+    justify-content: flex-start !important;
+    padding-left: 6px !important;
+    padding-right: 6px !important;
   }
 
   .table {
     height: 100%;
     padding-top: 0 !important;
     gap: 6px;
+    justify-content: flex-start !important;
   }
 
   .top-row {
@@ -1772,6 +1784,7 @@ button:disabled {
   .tableau {
     grid-template-columns: repeat(7, minmax(0, 1fr));
     gap: 4px;
+    justify-content: flex-start !important;
   }
 
   .column {
