@@ -819,7 +819,7 @@ export default function App() {
   };
   const elapsedLabel = formatClock(elapsedSeconds);
   const walletLabel = address ? shortAddress(address) : 'Not connected';
-  const onchainStatus = isConnected ? 'On-chain total' : 'Connect wallet';
+  const onchainStatus = isConnected ? 'On-chain total' : 'Not connected';
   const submitStatusLabel =
     submitStatus === 'success'
       ? 'Synced'
@@ -1244,14 +1244,6 @@ export default function App() {
             </div>
             <div className="score-foot">
               <span className={`score-status ${submitStatus}`}>Sync {submitStatusLabel}</span>
-              <button
-                className={`sound-toggle ${soundEnabled ? 'on' : 'off'}`}
-                type="button"
-                onClick={toggleSound}
-              >
-                <span className="label-long">{soundEnabled ? 'Sound on' : 'Sound off'}</span>
-                <span className="label-short">{soundEnabled ? 'SND ON' : 'SND OFF'}</span>
-              </button>
               {submitTx ? (
                 <span className="score-tx">Tx {shortAddress(submitTx)}</span>
               ) : submitError ? (
