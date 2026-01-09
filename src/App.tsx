@@ -262,6 +262,9 @@ export default function App() {
 
   useEffect(() => {
     audioRef.current?.setEnabled(soundEnabled);
+    if (soundEnabled) {
+      audioRef.current?.unlock();
+    }
     if (!soundEnabled) {
       audioRef.current?.stopAmbient?.();
     }
