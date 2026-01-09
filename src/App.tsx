@@ -1049,6 +1049,7 @@ export default function App() {
             <li>Select a card/stack, then click / tap a tableau column to move.</li>
             <li>Move a top card to foundations to build up by suit.</li>
           </ul>
+          <p className="help-warn">Mobile is portrait-only. Landscape is not supported; cards may disappear.</p>
         </div>
         <div className={`panel ${win ? 'win' : ''}`}>
           <h2>Victory</h2>
@@ -1257,7 +1258,7 @@ export default function App() {
               <li>Select a card/stack, then click / tap a tableau column to move.</li>
               <li>Move a top card to foundations to build up by suit.</li>
             </ul>
-            <p className="help-warn">縦画面では表示が崩れる可能性があります。</p>
+            <p className="help-warn">Mobile is portrait-only. Landscape is not supported; cards may disappear.</p>
           </div>
         </div>
       ) : null}
