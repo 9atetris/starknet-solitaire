@@ -2,6 +2,8 @@ type AudioEngine = {
   unlock: () => void;
   playMove: () => void;
   playWin: () => void;
+  playAmbient: () => void;
+  stopAmbient: () => void;
   setEnabled: (enabled: boolean) => void;
   dispose: () => void;
 };
@@ -10,6 +12,8 @@ const createNoopEngine = (): AudioEngine => ({
   unlock: () => {},
   playMove: () => {},
   playWin: () => {},
+  playAmbient: () => {},
+  stopAmbient: () => {},
   setEnabled: () => {},
   dispose: () => {},
 });
@@ -25,16 +29,22 @@ export const createAudioEngine = (): AudioEngine => {
   let context: AudioContext | null = null;
   let masterGain: GainNode | null = null;
   let sfxGain: GainNode | null = null;
+  let musicGain: GainNode | null = null;
   let enabled = true;
+  let musicTimer: number | null = null;
+  let musicActive = false;
 
   const ensureContext = () => {
     if (context) return;
     context = new AudioContextCtor();
     masterGain = context.createGain();
     sfxGain = context.createGain();
+    musicGain = context.createGain();
     masterGain.gain.value = 0.55;
     sfxGain.gain.value = 0.6;
-    sfxGain.connect(masterGain);
+    musicGain.gain.value = 0.12;
+    sfxGain.connect(masterGain!);
+    musicGain.connect(masterGain!);
     masterGain.connect(context.destination);
   };
 
@@ -101,6 +111,52 @@ export const createAudioEngine = (): AudioEngine => {
     });
   };
 
+  const spawnAmbientChord = () => {
+    if (!enabled) return;
+    ensureContext();
+    if (!context || !musicGain || context.state !== 'running') return;
+    const now = context.currentTime;
+    const freqs = [196, 233, 262, 294, 349, 392];
+    const base = freqs[Math.floor(Math.random() * freqs.length)];
+    const osc = context.createOscillator();
+    const gain = context.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = base;
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.linearRampToValueAtTime(0.07, now + 0.6);
+    gain.gain.linearRampToValueAtTime(0.0001, now + 7.5);
+    osc.connect(gain);
+    gain.connect(musicGain);
+    osc.start(now);
+    osc.stop(now + 8);
+  };
+
+  const playAmbient = () => {
+    if (!enabled) return;
+    ensureContext();
+    if (!context) return;
+    if (context.state === 'suspended') {
+      void context.resume().catch(() => {});
+    }
+    if (musicActive) return;
+    musicActive = true;
+    spawnAmbientChord();
+    musicTimer = window.setInterval(spawnAmbientChord, 5500);
+  };
+
+  const stopAmbient = () => {
+    musicActive = false;
+    if (musicTimer != null) {
+      window.clearInterval(musicTimer);
+      musicTimer = null;
+    }
+    if (musicGain && context) {
+      const now = context.currentTime;
+      musicGain.gain.cancelScheduledValues(now);
+      musicGain.gain.linearRampToValueAtTime(0.0001, now + 0.4);
+    }
+  };
+
   const unlock = () => {
     ensureContext();
     if (!context) return;
@@ -112,13 +168,20 @@ export const createAudioEngine = (): AudioEngine => {
         });
       return;
     }
+    if (musicActive) {
+      playAmbient();
+    }
   };
 
   const setEnabled = (next: boolean) => {
     enabled = next;
+    if (!enabled) {
+      stopAmbient();
+    }
   };
 
   const dispose = () => {
+    stopAmbient();
     if (context) {
       void context.close();
       context = null;
@@ -129,6 +192,8 @@ export const createAudioEngine = (): AudioEngine => {
     unlock,
     playMove,
     playWin,
+    playAmbient,
+    stopAmbient,
     setEnabled,
     dispose,
   };

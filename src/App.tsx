@@ -257,6 +257,11 @@ export default function App() {
 
   useEffect(() => {
     audioRef.current?.setEnabled(soundEnabled);
+    if (soundEnabled) {
+      audioRef.current?.playAmbient?.();
+    } else {
+      audioRef.current?.stopAmbient?.();
+    }
   }, [soundEnabled]);
 
   useEffect(() => {
@@ -1259,6 +1264,17 @@ export default function App() {
               <li>Move a top card to foundations to build up by suit.</li>
             </ul>
             <p className="help-warn">Mobile is portrait-only. Landscape is not supported; cards may disappear.</p>
+            <div className="help-sound">
+              <p className="help-sound-label">Sound</p>
+              <div className="help-sound-actions">
+                <button className="ghost" type="button" onClick={() => setSoundEnabled(true)}>
+                  Sound on
+                </button>
+                <button className="ghost" type="button" onClick={() => setSoundEnabled(false)}>
+                  Sound off
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       ) : null}
