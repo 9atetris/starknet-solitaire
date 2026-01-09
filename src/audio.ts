@@ -131,29 +131,8 @@ export const createAudioEngine = (): AudioEngine => {
     osc.stop(now + 8);
   };
 
-  const playAmbient = () => {
-    if (!enabled) return false;
-    ensureContext();
-    if (!context) return false;
-    const startLoop = () => {
-      if (musicActive) return;
-      musicActive = true;
-      spawnAmbientChord();
-      musicTimer = window.setInterval(spawnAmbientChord, 6500);
-      return true;
-    };
-    if (context.state === 'suspended') {
-      void context
-        .resume()
-        .then(() => {
-          if (!enabled) return false;
-          return startLoop();
-        })
-        .catch(() => {});
-      return false;
-    }
-    return startLoop() ?? false;
-  };
+  // Ambient music disabled per request; keep stub for API compatibility.
+  const playAmbient = () => false;
 
   const stopAmbient = () => {
     musicActive = false;
@@ -172,20 +151,12 @@ export const createAudioEngine = (): AudioEngine => {
     ensureContext();
     if (!context) return;
     if (context.state !== 'running') {
-      context
+      void context
         .resume()
-        .then(() => {
-          if (enabled) {
-            playAmbient();
-          }
-        })
         .catch(() => {
           // Ignore resume errors; user can retry by interacting again.
         });
       return;
-    }
-    if (enabled) {
-      playAmbient();
     }
   };
 

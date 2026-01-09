@@ -262,27 +262,10 @@ export default function App() {
 
   useEffect(() => {
     audioRef.current?.setEnabled(soundEnabled);
-    if (soundEnabled) {
-      const ok = audioRef.current?.playAmbient?.();
-      if (ok) ambientStartedRef.current = true;
-    } else {
+    if (!soundEnabled) {
       audioRef.current?.stopAmbient?.();
-      ambientStartedRef.current = false;
     }
-  }, [soundEnabled]);
-
-  useEffect(() => {
-    const startAmbient = () => {
-      if (!soundEnabled || ambientStartedRef.current) return;
-      const ok = audioRef.current?.playAmbient?.();
-      if (ok) ambientStartedRef.current = true;
-    };
-    window.addEventListener('pointerdown', startAmbient, { passive: true });
-    window.addEventListener('touchstart', startAmbient, { passive: true });
-    return () => {
-      window.removeEventListener('pointerdown', startAmbient);
-      window.removeEventListener('touchstart', startAmbient);
-    };
+    ambientStartedRef.current = false;
   }, [soundEnabled]);
 
   useEffect(() => {
