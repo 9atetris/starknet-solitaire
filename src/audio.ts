@@ -42,7 +42,7 @@ export const createAudioEngine = (): AudioEngine => {
     musicGain = context.createGain();
     masterGain.gain.value = 0.55;
     sfxGain.gain.value = 0.6;
-    musicGain.gain.value = 0.12;
+    musicGain.gain.value = 0.25;
     sfxGain.connect(masterGain!);
     musicGain.connect(masterGain!);
     masterGain.connect(context.destination);

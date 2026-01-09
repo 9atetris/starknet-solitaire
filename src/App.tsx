@@ -242,6 +242,10 @@ export default function App() {
     audioRef.current = createAudioEngine();
     const unlock = () => {
       audioRef.current?.unlock();
+      if (soundEnabled && !ambientStartedRef.current) {
+        audioRef.current?.playAmbient?.();
+        ambientStartedRef.current = true;
+      }
     };
     const captureOnce = { capture: true, once: true } as const;
     const captureOnly = { capture: true } as const;
@@ -1289,7 +1293,7 @@ export default function App() {
                   onClick={() => setSoundEnabled((prev) => !prev)}
                   aria-pressed={soundEnabled}
                 >
-                  {soundEnabled ? 'Sound on' : 'Sound off'}
+                  Sound
                 </button>
               </div>
             </div>
