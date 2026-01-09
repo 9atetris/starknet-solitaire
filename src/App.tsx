@@ -319,6 +319,7 @@ export default function App() {
   };
 
   const resetGame = () => {
+    audioRef.current?.playShuffle?.();
     const nextSeed = getRandomSeed();
     setSeed(nextSeed);
     setSelected(null);
@@ -456,6 +457,7 @@ export default function App() {
       if (next !== game) commitGame(next);
       return;
     }
+    audioRef.current?.playDeal?.();
     const next = dealFromStock(game);
     if (next !== game) commitGame(next);
   };

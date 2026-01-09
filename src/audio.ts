@@ -2,6 +2,8 @@ type AudioEngine = {
   unlock: () => void;
   playMove: () => void;
   playWin: () => void;
+  playDeal: () => void;
+  playShuffle: () => void;
   playAmbient: () => boolean;
   stopAmbient: () => void;
   setEnabled: (enabled: boolean) => void;
@@ -12,6 +14,8 @@ const createNoopEngine = (): AudioEngine => ({
   unlock: () => {},
   playMove: () => {},
   playWin: () => {},
+  playDeal: () => {},
+  playShuffle: () => {},
   playAmbient: () => false,
   stopAmbient: () => {},
   setEnabled: () => {},
@@ -49,6 +53,7 @@ export const createAudioEngine = (): AudioEngine => {
   };
 
   const playMove = () => {
+    if (!enabled) return;
     ensureContext();
     if (!context || !sfxGain || context.state !== 'running') return;
     const now = context.currentTime;
@@ -83,6 +88,7 @@ export const createAudioEngine = (): AudioEngine => {
   };
 
   const playWin = () => {
+    if (!enabled) return;
     ensureContext();
     if (!context || !sfxGain || context.state !== 'running') return;
     const now = context.currentTime;
@@ -107,6 +113,65 @@ export const createAudioEngine = (): AudioEngine => {
       osc.start(start);
       osc.stop(start + 0.5);
     });
+  };
+
+  const playDeal = () => {
+    if (!enabled) return;
+    ensureContext();
+    if (!context || !sfxGain || context.state !== 'running') return;
+    const now = context.currentTime;
+    const gain = context.createGain();
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.linearRampToValueAtTime(0.18, now + 0.06);
+    gain.gain.linearRampToValueAtTime(0.0001, now + 0.25);
+
+    const filter = context.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = 1200;
+    filter.Q.value = 0.8;
+
+    gain.connect(filter);
+    filter.connect(sfxGain);
+
+    const osc = context.createOscillator();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(340, now);
+    osc.frequency.linearRampToValueAtTime(220, now + 0.16);
+    osc.connect(gain);
+    osc.start(now);
+    osc.stop(now + 0.3);
+  };
+
+  const playShuffle = () => {
+    if (!enabled) return;
+    ensureContext();
+    if (!context || !sfxGain || context.state !== 'running') return;
+    const now = context.currentTime;
+    const noise = context.createBufferSource();
+    const bufferSize = Math.floor(0.2 * context.sampleRate);
+    const buffer = context.createBuffer(1, bufferSize, context.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i += 1) {
+      data[i] = (Math.random() * 2 - 1) * 0.4;
+    }
+    noise.buffer = buffer;
+    noise.loop = false;
+
+    const gain = context.createGain();
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.linearRampToValueAtTime(0.25, now + 0.08);
+    gain.gain.linearRampToValueAtTime(0.0001, now + 0.38);
+
+    const filter = context.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.value = 450;
+    filter.Q.value = 2.4;
+
+    noise.connect(filter);
+    filter.connect(gain);
+    gain.connect(sfxGain);
+    noise.start(now);
+    noise.stop(now + 0.4);
   };
 
   const spawnAmbientChord = () => {
@@ -177,6 +242,8 @@ export const createAudioEngine = (): AudioEngine => {
     unlock,
     playMove,
     playWin,
+    playDeal,
+    playShuffle,
     playAmbient,
     stopAmbient,
     setEnabled,
