@@ -49,7 +49,6 @@ export const createAudioEngine = (): AudioEngine => {
   };
 
   const playMove = () => {
-    if (!enabled) return;
     ensureContext();
     if (!context || !sfxGain || context.state !== 'running') return;
     const now = context.currentTime;
@@ -84,7 +83,6 @@ export const createAudioEngine = (): AudioEngine => {
   };
 
   const playWin = () => {
-    if (!enabled) return;
     ensureContext();
     if (!context || !sfxGain || context.state !== 'running') return;
     const now = context.currentTime;
