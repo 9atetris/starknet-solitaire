@@ -185,6 +185,7 @@ export default function App() {
   const [leaderboardDailyError, setLeaderboardDailyError] = useState<string | null>(null);
   const [leaderboardAlltimeError, setLeaderboardAlltimeError] = useState<string | null>(null);
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const dragStateRef = useRef<DragState | null>(null);
   const audioRef = useRef<ReturnType<typeof createAudioEngine> | null>(null);
   const pendingDragRef = useRef<{
@@ -817,6 +818,37 @@ export default function App() {
           : 'Idle';
   const leaderboardChipLabel =
     currentLeaderboardStatus === 'success' ? `Top ${currentLeaderboardEntries.length}/10` : leaderboardStatusLabel;
+  const statsContent = (
+    <>
+      <button
+        className="hud-dashboard"
+        type="button"
+        onClick={openDashboard}
+        aria-expanded={dashboardOpen}
+        aria-controls="score-dashboard"
+      >
+        <span className="hud-dashboard-label">Score dashboard</span>
+        <span className="hud-dashboard-value">{onchainTotalStr}</span>
+        <span className="hud-dashboard-sub">{onchainStatus}</span>
+      </button>
+      <div className="hud-stats">
+        <div className="stat-pill">
+          <span className="label">Daily best</span>
+          <span className="value">{onchainBestStr}</span>
+        </div>
+        <div className="stat-pill">
+          <span className="label">Moves</span>
+          <span className="value">{history.present.moves}</span>
+        </div>
+        <div className="stat-pill">
+          <span className="label">Time</span>
+          <span className="value">{elapsedLabel}</span>
+        </div>
+      </div>
+    </>
+  );
+  const openMenu = () => setIsMenuOpen(true);
+  const closeMenu = () => setIsMenuOpen(false);
 
   return (
     <div className={`app ${boardPulse ? 'win-pulse' : ''}`} onClick={onBackgroundClick}>
@@ -830,37 +862,16 @@ export default function App() {
           </div>
         </div>
         <div className="hud-center">
-          <button
-            className="hud-dashboard"
-            type="button"
-            onClick={openDashboard}
-            aria-expanded={dashboardOpen}
-            aria-controls="score-dashboard"
-          >
-            <span className="hud-dashboard-label">Score dashboard</span>
-            <span className="hud-dashboard-value">{onchainTotalStr}</span>
-            <span className="hud-dashboard-sub">{onchainStatus}</span>
-          </button>
-          <div className="hud-stats">
-            <div className="stat-pill">
-              <span className="label">Daily best</span>
-              <span className="value">{onchainBestStr}</span>
-            </div>
-            <div className="stat-pill">
-              <span className="label">Moves</span>
-              <span className="value">{history.present.moves}</span>
-            </div>
-            <div className="stat-pill">
-              <span className="label">Time</span>
-              <span className="value">{elapsedLabel}</span>
-            </div>
-          </div>
+          {statsContent}
         </div>
         <div className="hud-actions">
           <button className="ghost" onClick={resetGame}>
             New
           </button>
           <WalletConnect />
+          <button className="ghost" type="button" onClick={openMenu}>
+            Menu
+          </button>
           <button className="help-toggle" type="button" onClick={openHelp} aria-label="How to play">
             ?
           </button>
@@ -1269,6 +1280,21 @@ export default function App() {
             document.body
           )
         : null}
+      {isMenuOpen ? (
+        <div className="hud-modal-backdrop" onClick={closeMenu}>
+          <div className="hud-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="hud-modal-head">
+              <span className="hud-modal-title">Menu</span>
+              <button className="hud-modal-close" type="button" onClick={closeMenu} aria-label="Close menu">
+                ×
+              </button>
+            </div>
+            <div className="hud-modal-body">
+              <div className="hud-center hud-modal-content">{statsContent}</div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
